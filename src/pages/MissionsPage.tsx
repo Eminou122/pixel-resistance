@@ -40,7 +40,7 @@ export function MissionCard({ mission, index }: { mission: Mission; index: numbe
   const count = record ? stars(mission.id, record.best) : 0
 
   return (
-    <article className={`px-frame px-card flex h-full flex-col gap-4 p-5 ${unlocked ? '' : 'opacity-75'}`}>
+    <article className="px-frame px-card flex h-full flex-col gap-4 p-5">
       <div className="flex items-start gap-4">
         <div className={`flex size-16 shrink-0 items-center justify-center bg-px-navy p-2 ${unlocked ? '' : 'grayscale'}`}>
           {unlocked ? <EnemySprite id={mission.enemy} /> : <Lock aria-hidden="true" className="size-6 text-px-cream" />}

@@ -91,7 +91,7 @@ export function MenuPage() {
           <PixelButton tone="red" onClick={() => setModal('about')}>
             {t('menu.about')}
           </PixelButton>
-          <p className="font-retro mt-2 hidden text-lg text-px-cream/60 sm:block">{t('menu.keys')}</p>
+          <p className="font-retro mt-2 hidden bg-px-night/85 px-2 text-lg text-px-cream sm:block">{t('menu.keys')}</p>
         </div>
       </div>
 

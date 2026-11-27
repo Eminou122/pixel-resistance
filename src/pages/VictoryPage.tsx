@@ -30,6 +30,7 @@ export function VictoryPage() {
         <div className="mx-auto mb-4 w-16">
           <BuildingSprite location={locations.find((l) => l.id === 'tower')!} />
         </div>
+        <h1 className="font-pixel mb-3 text-sm text-px-red-dark">{t('locations.tower.name')}</h1>
         <p className="leading-relaxed">{t('victory.locked')}</p>
         <PixelLink to={`/missions`} className="mt-5">
           {t('victory.toMissions')}
