@@ -16,7 +16,7 @@ function savedLanguage(): Language {
   }
 }
 
-/** A dedicated instance: the rest of the NIRD WORLD site stays French-only and untouched. */
+/** The game's own i18next instance; French unless the player chose English. */
 export const i18n = i18next.createInstance()
 void i18n.use(initReactI18next).init({
   resources: { fr: { translation: fr }, en: { translation: en } },
