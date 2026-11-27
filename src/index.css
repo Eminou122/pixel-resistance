@@ -1,17 +1,18 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-px-navy: #17213b;
-  --color-px-night: #0e1528;
-  --color-px-cream: #fff1c7;
-  --color-px-red: #e84855;
-  --color-px-red-dark: #b82e3a;
-  --color-px-blue: #4776d0;
-  --color-px-blue-dark: #33589f;
-  --color-px-green: #63b75d;
-  --color-px-green-dark: #3e8a39;
-  --color-px-gold: #f5c451;
-  --color-px-ink: #1b1f2e;
+  --color-void: #070a16;
+  --color-night: #0d1226;
+  --color-steel: #262f4a;
+  --color-steel-light: #4c5a7e;
+  --color-mist: #a9b8d8;
+  --color-ice: #f4f8ff;
+  --color-cyan: #3ef0ff;
+  --color-cyan-dark: #1aa6c4;
+  --color-magenta: #ff3ea5;
+  --color-amber: #ffb347;
+  --color-red: #ff4d5e;
+  --color-green: #59f39a;
 
   --font-pixel: 'Press Start 2P', ui-monospace, monospace;
   --font-retro: 'VT323', ui-monospace, monospace;
@@ -19,20 +20,20 @@
 }
 
 @layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
   html {
     -webkit-text-size-adjust: 100%;
   }
-
   body {
-    @apply bg-px-navy font-sans text-px-cream antialiased;
+    @apply bg-void font-sans text-ice antialiased;
+    overscroll-behavior: none;
   }
-
   ::selection {
-    background: var(--color-px-gold);
-    color: var(--color-px-ink);
-  }
-
-  p {
-    text-wrap: pretty;
+    background: var(--color-cyan);
+    color: var(--color-void);
   }
 }

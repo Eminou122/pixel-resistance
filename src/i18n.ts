@@ -4,39 +4,21 @@ import { en } from './locales/en.ts'
 import { fr } from './locales/fr.ts'
 
 export const LANGUAGES = ['fr', 'en'] as const
-export type Language = (typeof LANGUAGES)[number]
-const KEY = 'pixel-resistance-lang'
 
-function savedLanguage(): Language {
-  try {
-    const value = localStorage.getItem(KEY)
-    return value === 'en' ? 'en' : 'fr'
-  } catch {
-    return 'fr'
-  }
-}
-
-/** The game's own i18next instance; French unless the player chose English. */
+/** The game's own i18next instance. The language itself is kept in the settings (see game/store.ts). */
 export const i18n = i18next.createInstance()
 void i18n.use(initReactI18next).init({
   resources: { fr: { translation: fr }, en: { translation: en } },
-  lng: savedLanguage(),
+  lng: 'fr',
   fallbackLng: 'fr',
-  initAsync: false,
+  // React escapes text itself, and these strings never become HTML.
   interpolation: { escapeValue: false },
-  returnObjects: true,
+  returnNull: false,
+  initAsync: false,
 })
 
-i18n.on('languageChanged', (lng) => {
-  try {
-    localStorage.setItem(KEY, lng)
-  } catch {
-    // Private mode: the choice simply lasts for this visit.
-  }
-})
-
-/** For lists stored as arrays in the locales. */
-export const list = (key: string) => {
-  const value = i18n.t(key, { returnObjects: true }) as unknown
-  return Array.isArray(value) ? (value as string[]) : []
+/** An array of lines from the locales (dialogue, credits…). */
+export const lines = (key: string): string[] => {
+  const v = i18n.t(key, { returnObjects: true }) as unknown
+  return Array.isArray(v) ? (v as string[]) : [String(v)]
 }

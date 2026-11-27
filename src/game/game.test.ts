@@ -1,105 +1,223 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
-import { en } from '../locales/en.ts'
-import { fr } from '../locales/fr.ts'
-import { achievements, enemies, locations, missions, modules, npcs, NPC_LINES } from './content.ts'
-import { awardAchievements, coins, emptyProgress, level, missionUnlocked, recommendations, recordMission, sanitize, xp } from './progress.ts'
+import test from 'node:test'
+import { ITEMS, QUESTS, RECIPES, XP_TABLE } from './data.ts'
+import { AREAS, OVERLAY, SOLID, TILE, kindAt, reachable, walkable, type AreaDef } from './maps.ts'
+import { SETTINGS_KEY, latestSlot, parseSave, parseSettings, readSlot, sanitize, writeSlot, type KeyValueStore } from './save.ts'
+import {
+  addItem, craft, damage, equip, grantOnce, levelForXp, newSave, removeItem, statsFor, statsOf, useItem, type SaveData,
+} from './state.ts'
+import { GUARD_IDS, applyEffect, arenaOpen, currentObjective, onDevice, onEnterArea, onGuardDefeated, onReachOutpost, onWardenDefeated, questStep, talk } from './story.ts'
 
-/** Every leaf path of a locale, arrays included with their length. */
-const shape = (value: unknown, path = ''): string[] =>
-  Array.isArray(value)
-    ? [`${path}[${value.length}]`]
-    : typeof value === 'object' && value !== null
-      ? Object.entries(value).flatMap(([k, v]) => shape(v, path ? `${path}.${k}` : k))
-      : [path]
+const key = (p: { x: number; y: number }) => `${Math.floor(p.x)},${Math.floor(p.y)}`
 
-const get = (locale: unknown, path: string) => path.split('.').reduce<unknown>((node, key) => (node as Record<string, unknown>)?.[key], locale)
-
-test('French and English have exactly the same keys and list lengths', () => {
-  assert.deepEqual(shape(en).sort(), shape(fr).sort())
-})
-
-test('every game entity has its texts in both languages', () => {
-  const keys: string[] = []
-  for (const m of missions) {
-    keys.push(`missions.${m.id}.title`, `missions.${m.id}.intro`, `missions.${m.id}.objective`)
-    for (const q of m.questions) {
-      keys.push(`missions.${m.id}.q.${q.id}.prompt`)
-      for (const o of q.options) keys.push(`missions.${m.id}.q.${q.id}.o.${o.id}.label`, `missions.${m.id}.q.${q.id}.o.${o.id}.why`)
-    }
-    assert.equal(Object.keys(get(fr, `missions.${m.id}.q`) as object).length, m.questions.length, m.id)
+test('maps: rows are rectangular and every tile is defined', () => {
+  for (const area of Object.values(AREAS)) {
+    const width = area.rows[0]!.length
+    area.rows.forEach((row, y) => assert.equal(row.length, width, `${area.id} row ${y}`))
+    for (const row of area.rows) for (const c of row) assert.ok(area.legend[c], `${area.id}: unknown tile "${c}"`)
   }
-  for (const e of enemies) keys.push(`enemies.${e.id}.name`, `enemies.${e.id}.nuance`)
-  for (const mo of modules) {
-    keys.push(`modules.${mo.id}.title`)
-    assert.equal((get(fr, `modules.${mo.id}.quiz.options`) as string[]).length, 3, mo.id)
+  for (const k of SOLID) assert.ok(OVERLAY.has(k))
+})
+
+test('maps: everything placed stands on open ground', () => {
+  for (const area of Object.values(AREAS)) {
+    const spots: [string, { x: number; y: number }][] = [
+      ...Object.entries(area.entries),
+      ...area.npcs.map((n) => [n.id, n] as [string, { x: number; y: number }]),
+      ...area.pickups.map((p) => [p.id, p] as [string, { x: number; y: number }]),
+      ...area.enemies.flatMap((e) => [[e.id, e], ...(e.patrol ? [[`${e.id} patrol`, { x: e.patrol[0], y: e.patrol[1] }]] : [])] as [string, { x: number; y: number }][]),
+      ...area.interactables.map((i) => [i.kind, i] as [string, { x: number; y: number }]),
+    ]
+    for (const [name, p] of spots) assert.ok(walkable(area, Math.floor(p.x), Math.floor(p.y)), `${area.id}: ${name} at ${key(p)}`)
   }
-  for (const l of locations) keys.push(`locations.${l.id}.name`, `locations.${l.id}.text`, `locations.${l.id}.cta`)
-  for (const n of npcs) assert.equal((get(fr, `npcs.${n.id}.lines`) as string[]).length, NPC_LINES, n.id)
-  for (const a of achievements) keys.push(`achievements.${a}.name`, `achievements.${a}.desc`)
-  for (const locale of [fr, en]) for (const key of keys) assert.equal(typeof get(locale, key), 'string', key)
 })
 
-test('each question has exactly one best answer', () => {
-  for (const m of missions) for (const q of m.questions) assert.equal(q.options.filter((o) => o.quality === 'best').length, 1, `${m.id}.${q.id}`)
+test('maps: Nova-7 exit and every Wilds pickup can be reached on foot', () => {
+  const nova = AREAS.nova7
+  const fromStart = reachable(nova, nova.entries.start!)
+  assert.ok([...fromStart].some((k) => { const [x, y] = k.split(',').map(Number); return kindAt(nova, x!, y!) === 'exit' }))
+  for (const n of nova.npcs) assert.ok(fromStart.has(key(n)), n.id)
+
+  const wilds = AREAS.wilds
+  const open = reachable(wilds, wilds.entries.nova7!)
+  for (const p of wilds.pickups) assert.ok(open.has(key(p)), p.id)
+  for (const e of wilds.enemies) assert.ok(open.has(key(e)), e.id)
+  assert.ok(open.has('38,17'), 'transmission device')
+  // The arena stays shut until its gate opens.
+  assert.ok(!open.has(key(wilds.boss!)), 'arena must be sealed')
+  const withGate = reachable(wilds, wilds.entries.nova7!, true)
+  assert.ok(withGate.has(key(wilds.boss!)) && withGate.has('23,33'))
 })
 
-test('replaying a mission cannot farm rewards; only an improvement counts', () => {
-  const answers = (q: 'best' | 'ok' | 'bad') => missions[0]!.questions.map(() => q)
-  let p = emptyProgress()
-  const first = recordMission(p, 'windows10', answers('ok'))
-  assert.ok(first.reward.firstClear && first.reward.xp > 0 && first.reward.coins > 0)
-  p = first.progress
-
-  const same = recordMission(p, 'windows10', answers('ok'))
-  assert.equal(same.reward.xp, 0)
-  assert.equal(same.reward.coins, 0)
-  assert.equal(same.progress.missions.windows10!.attempts, 2)
-
-  const worse = recordMission(same.progress, 'windows10', answers('bad'))
-  assert.equal(worse.reward.xp, 0)
-  assert.equal(worse.progress.missions.windows10!.best, first.reward.score)
-
-  const better = recordMission(worse.progress, 'windows10', answers('best'))
-  assert.equal(better.reward.xp, (better.reward.score - first.reward.score) * 10)
-  assert.ok(better.progress.missions.windows10!.improved)
-  assert.ok(awardAchievements(better.progress).unlocked.includes('comeback'))
+test('maps: the hidden grove is only reachable through the fake thicket', () => {
+  const wilds = AREAS.wilds
+  const sealed: AreaDef = { ...wilds, rows: wilds.rows.map((r, y) => (y === 17 ? r.slice(0, 9) + 'h' + r.slice(10) : r)) }
+  assert.equal(kindAt(wilds, 9, 17), 'fakethicket')
+  assert.ok(!reachable(sealed, wilds.entries.nova7!).has('3,17'))
+  assert.ok(reachable(wilds, wilds.entries.nova7!).has('3,17'))
 })
 
-test('missions unlock in order and levels follow XP', () => {
-  const p = emptyProgress()
-  assert.ok(missionUnlocked(p, 'windows10'))
-  assert.ok(!missionUnlocked(p, 'licenses'))
-  assert.ok(missionUnlocked(recordMission(p, 'windows10', ['bad', 'bad', 'bad']).progress, 'licenses'))
-  assert.equal(level(0).level, 1)
-  assert.equal(level(80).level, 2)
-  assert.equal(level(10_000).level, 6)
-  assert.equal(level(10_000).ratio, 1)
+test('stats: levels, equipment bonuses and damage', () => {
+  assert.equal(levelForXp(0), 1)
+  assert.equal(levelForXp(XP_TABLE[2]! - 1), 1)
+  assert.equal(levelForXp(XP_TABLE[2]!), 2)
+  assert.equal(levelForXp(1e9), 7)
+  const bare = statsFor(0, { melee: null, ranged: null, armor: null, module: null })
+  const geared = statsFor(0, { melee: 'arc_blade', ranged: 'plasma_blaster', armor: 'warden_plating', module: 'signal_amplifier' })
+  assert.equal(geared.attack - bare.attack, 9)
+  assert.equal(geared.defense - bare.defense, 6)
+  assert.equal(geared.maxHp - bare.maxHp, 20)
+  assert.equal(geared.maxEnergy - bare.maxEnergy, 25)
+  assert.equal(damage(10, 4), 8)
+  assert.equal(damage(1, 50), 1)
 })
 
-test('recommendations target the weakest axes', () => {
-  let p = emptyProgress()
-  for (const m of missions) p = recordMission(p, m.id, m.questions.map((q) => (q.axis === 'data' ? 'bad' : 'best'))).progress
-  const recs = recommendations(p)
-  assert.equal(recs.length, 1)
-  assert.equal(recs[0]!.axis, 'data')
+test('inventory: stacking limits, equipping and consumables', () => {
+  const s = newSave()
+  let inv = addItem(s.inventory, 'healing_cell', 50)
+  assert.equal(inv.items.healing_cell, ITEMS.healing_cell.max)
+  assert.equal(equip(inv, 'arc_blade'), null, 'cannot equip what you do not own')
+  inv = addItem(inv, 'arc_blade', 1)
+  inv = equip(inv, 'arc_blade')!
+  assert.equal(inv.equipped.melee, 'arc_blade')
+  assert.equal(removeItem(inv, 'components', 1), null)
+  assert.equal(removeItem(inv, 'arc_blade', 1)!.equipped.melee, null, 'losing an item unequips it')
+
+  assert.equal(useItem(s, 'healing_cell'), null, 'healing at full health does nothing')
+  const hurt: SaveData = { ...s, player: { ...s.player, hp: 10 } }
+  const healed = useItem(hurt, 'healing_cell')!
+  assert.equal(healed.player.hp, 55)
+  assert.equal(healed.inventory.items.healing_cell, 1)
+  const nearlyFull: SaveData = { ...s, player: { ...s.player, hp: statsOf(s).maxHp - 5 } }
+  assert.equal(useItem(nearlyFull, 'healing_cell')!.player.hp, statsOf(s).maxHp)
 })
 
-test('corrupted or tampered saves are repaired, not trusted', () => {
-  assert.deepEqual(sanitize('garbage'), emptyProgress())
-  assert.deepEqual(sanitize(null), emptyProgress())
-  const p = sanitize({
-    started: true,
-    missions: { windows10: { best: 9999, attempts: -3, answers: ['best', 'best', 'best'] }, fake: {}, data: { answers: ['best'] } },
-    enemies: ['lockin', 'lockin', 'dragon'],
-    coinsSpent: 1e9,
-    achievements: { first_mission: 'yesterday', veteran: 5 },
-  })
-  assert.equal(p.missions.windows10!.best, 9) // recomputed from the answers
-  assert.equal(p.missions.windows10!.attempts, 1)
-  assert.equal(p.missions.data, undefined) // wrong answer count
-  assert.deepEqual(p.enemies, ['lockin'])
-  assert.equal(coins(p), 0) // cannot spend more than earned
-  assert.deepEqual(Object.keys(p.achievements), ['veteran'])
-  assert.ok(xp(p) > 0)
+test('rewards: an enemy or a pickup pays once, and levelling up heals', () => {
+  const s: SaveData = { ...newSave(), player: { ...newSave().player, hp: 3, xp: XP_TABLE[2]! - 1 } }
+  const first = grantOnce(s, 'defeated', 'drone_1', { xp: 15, credits: 6 })
+  assert.ok(first.granted)
+  assert.equal(first.levelUp, 2)
+  assert.equal(first.save.player.hp, statsOf(first.save).maxHp)
+  const again = grantOnce(first.save, 'defeated', 'drone_1', { xp: 15, credits: 6 })
+  assert.ok(!again.granted)
+  assert.equal(again.save.player.xp, first.save.player.xp)
+  assert.equal(again.save.player.credits, first.save.player.credits)
+})
+
+test('crafting spends components and credits, and respects carry limits', () => {
+  let s = newSave()
+  assert.equal(craft(s, 'arc_blade'), null)
+  s = { ...s, player: { ...s.player, credits: 500 }, inventory: addItem(s.inventory, 'components', 20) }
+  const crafted = craft(s, 'arc_blade')!
+  assert.equal(crafted.inventory.items.arc_blade, 1)
+  assert.equal(crafted.inventory.items.components, 20 - RECIPES[0]!.components)
+  assert.equal(crafted.player.credits, 500 - RECIPES[0]!.credits)
+  assert.equal(craft(crafted, 'arc_blade'), null, 'only one Arc Blade')
+})
+
+test('story: the whole first chapter can be completed, and rewards are paid once', () => {
+  let s = newSave()
+  assert.equal(talk('commander', s).choices?.[0]?.effect, 'accept_q1')
+  s = applyEffect(s, 'accept_q1').save
+  assert.equal(questStep(s, 'lost_transmission'), 'leave_colony')
+  s = onEnterArea(s, 'wilds').save
+  s = onReachOutpost(s).save
+  const found = onDevice(s)
+  assert.equal(found.message, 'msg.deviceFound')
+  s = found.save
+  assert.equal(questStep(s, 'lost_transmission'), 'defeat_guards')
+  for (const id of GUARD_IDS) {
+    s = grantOnce(s, 'defeated', id, { xp: 10 }).save
+    s = onGuardDefeated(s).save
+  }
+  assert.equal(s.inventory.items.transmission_device, 1)
+  assert.equal(questStep(s, 'lost_transmission'), 'return_colony')
+  assert.ok(!arenaOpen(s))
+  const credits = s.player.credits
+  s = applyEffect(s, 'complete_q1').save
+  assert.equal(s.player.credits, credits + QUESTS.lost_transmission.reward.credits!)
+  assert.ok(arenaOpen(s))
+  assert.deepEqual(currentObjective(s), { quest: 'iron_warden', step: 'defeat_warden' })
+
+  s = onWardenDefeated(s).save
+  const xp = s.player.xp
+  assert.equal(onWardenDefeated(s).save.player.xp, xp, 'the boss pays once')
+  assert.equal(s.inventory.items.warden_plating, 1)
+  assert.equal(questStep(s, 'iron_warden'), 'report_back')
+  s = applyEffect(s, 'complete_q2').save
+  assert.ok(s.world.flags.includes('chapter_complete'))
+  assert.equal(currentObjective(s), null)
+})
+
+const memory = (): KeyValueStore & { data: Map<string, string> } => {
+  const data = new Map<string, string>()
+  return { data, getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v), removeItem: (k) => void data.delete(k) }
+}
+
+test('saves: round trip, empty, corrupt and outdated slots', () => {
+  const kv = memory()
+  const s = newSave(new Date('2026-01-01T00:00:00Z'))
+  assert.ok(writeSlot(kv, 2, s))
+  const back = readSlot(kv, 2)
+  assert.equal(back.state, 'ok')
+  assert.deepEqual(back.state === 'ok' && back.data, s)
+  assert.equal(readSlot(kv, 1).state, 'empty')
+  kv.setItem('echoes-of-the-last-signal:slot-1', '{oops')
+  assert.equal(readSlot(kv, 1).state, 'corrupt')
+  assert.equal(parseSave('[]').state, 'corrupt')
+  assert.equal(parseSave(JSON.stringify({ ...s, version: 99 })).state, 'outdated')
+  assert.equal(latestSlot(kv), 2)
+})
+
+test('saves: tampered data is repaired, never trusted', () => {
+  const s = newSave()
+  const evil = {
+    ...s,
+    player: { xp: -50, hp: 99999, energy: 'lots', credits: -10 },
+    inventory: { items: { healing_cell: 500, rocket_launcher: 3, warden_plating: 0 }, equipped: { melee: 'warden_plating', armor: 'warden_plating', ranged: '<img>' } },
+    quests: { iron_warden: { step: 1, done: false }, lost_transmission: { step: 99 } },
+    world: { area: 'moon', x: 1, y: 1, defeated: ['drone_1', 'drone_1', 'ghost'], collected: ['w_amp', 42], flags: ['warden_defeated', 'god_mode'] },
+  }
+  const fixed = sanitize(evil as unknown as Record<string, unknown>)
+  assert.equal(fixed.player.xp, 0)
+  assert.equal(fixed.player.credits, 0)
+  assert.equal(fixed.player.hp, statsOf(fixed).maxHp)
+  assert.equal(fixed.player.energy, statsOf(fixed).maxEnergy)
+  assert.equal(fixed.inventory.items.healing_cell, ITEMS.healing_cell.max)
+  assert.ok(!('rocket_launcher' in fixed.inventory.items))
+  assert.deepEqual(fixed.inventory.equipped, { melee: null, ranged: null, armor: null, module: null })
+  assert.equal(fixed.quests.iron_warden, undefined, 'quest 2 needs quest 1 done')
+  assert.equal(fixed.quests.lost_transmission?.step, QUESTS.lost_transmission.steps.length - 1)
+  assert.equal(fixed.world.area, 'nova7')
+  assert.deepEqual(fixed.world.defeated, ['drone_1', 'iron_warden'])
+  assert.deepEqual(fixed.world.collected, ['w_amp'])
+  assert.deepEqual(fixed.world.flags, ['warden_defeated'])
+  // (1,1) px is inside the fence: the player is moved to a safe entry point.
+  assert.ok(walkable(AREAS.nova7, Math.floor(fixed.world.x / TILE), Math.floor(fixed.world.y / TILE)))
+})
+
+test('settings: defaults and invalid values', () => {
+  assert.deepEqual(parseSettings(null, true), { master: 80, music: 60, sfx: 80, muted: false, reducedMotion: true, touch: 'auto', lang: 'fr' })
+  const s = parseSettings(JSON.stringify({ master: 500, music: -3, sfx: 'x', muted: true, touch: 'always', lang: 'en' }))
+  assert.equal(s.master, 100)
+  assert.equal(s.music, 0)
+  assert.equal(s.sfx, 80)
+  assert.equal(s.touch, 'auto')
+  assert.equal(s.lang, 'en')
+  assert.equal(parseSettings('{bad').lang, 'fr')
+  assert.ok(SETTINGS_KEY)
+})
+
+test('texts: French and English match key for key, and every game id has a text', async () => {
+  const { en } = await import('../locales/en.ts')
+  const { fr } = await import('../locales/fr.ts')
+  const { ITEM_IDS, QUEST_IDS, AREA_IDS } = await import('./data.ts')
+  const shape = (v: unknown, path = ''): string[] =>
+    Array.isArray(v) ? [`${path}[${v.length}]`] : v && typeof v === 'object' ? Object.entries(v).flatMap(([k, x]) => shape(x, `${path}.${k}`)) : [path]
+  assert.deepEqual(shape(fr), shape(en))
+  for (const loc of [en, fr]) {
+    for (const id of ITEM_IDS) assert.ok(loc.items[id].name && loc.items[id].desc, id)
+    for (const q of QUEST_IDS) for (const step of QUESTS[q].steps) assert.ok((loc.quests[q].steps as Record<string, string>)[step], `${q}.${step}`)
+    for (const a of AREA_IDS) assert.ok(loc.areas[a], a)
+  }
 })

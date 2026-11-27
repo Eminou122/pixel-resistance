@@ -1,92 +1,201 @@
+// Shared state between Phaser (gameplay) and React (menus). Rules live in state.ts / story.ts; this file wires them up.
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
-import type { AchievementId, MissionId, Quality } from './content.ts'
+import type { ItemId, Recipe, Slot } from './data.ts'
 import {
-  SAVE_VERSION,
-  awardAchievements,
-  coins,
-  emptyProgress,
-  level,
-  recordMission,
-  sanitize,
-  xp,
-  type Progress,
-  type Reward,
-} from './progress.ts'
+  SETTINGS_KEY, browserStore, deleteSlot, parseSettings, readSlot, writeSlot, type Settings,
+} from './save.ts'
+import { craft, equip, newSave, unequip, useItem, type SaveData } from './state.ts'
+import { applyEffect, type Notice, type Outcome, type Script } from './story.ts'
 
-export type Toast = { key: number } & ({ kind: 'achievement'; id: AchievementId } | { kind: 'level'; level: number })
+export type Panel = 'inventory' | 'character' | 'journal' | 'settings' | 'bench' | null
 
-interface GameState {
-  progress: Progress
-  sound: boolean
-  toasts: Toast[]
-  newGame: () => void
-  seeIntro: () => void
-  completeMission: (id: MissionId, answers: Quality[]) => Reward
-  discover: (list: 'enemies' | 'modules' | 'locations' | 'npcs', id: string) => void
-  spend: (amount: number) => boolean
-  reset: () => void
-  toggleSound: () => void
-  dismissToast: (key: number) => void
+/** Written every frame by the engine; read when saving. Not reactive on purpose (no re-render per frame). */
+export const live = { x: 0, y: 0, playTime: 0 }
+
+interface GameStore {
+  screen: 'title' | 'game'
+  slot: number | null
+  save: SaveData
+  ui: { paused: boolean; panel: Panel; dialogue: Script | null; gameOver: boolean }
+  settings: Settings
+  notices: (Notice & { id: number })[]
+  boss: { hp: number; max: number } | null
+  canInteract: boolean
+  /** Bumped to make the world scene rebuild itself from `save` (new game, load, retry). */
+  epoch: number
+  saveError: boolean
+
+  newGame(slot: number): void
+  loadSlot(slot: number): boolean
+  deleteSlot(slot: number): void
+  saveNow(): boolean
+  retry(): void
+  quitToTitle(): void
+
+  update(f: (s: SaveData) => SaveData): void
+  apply(o: Outcome, autosave?: boolean): void
+  notify(...n: Notice[]): void
+  dismissNotice(id: number): void
+
+  openDialogue(s: Script): void
+  closeDialogue(effect?: Script['effect'] | null): void
+  openPanel(p: Panel): void
+  closePanel(): void
+  togglePause(): void
+  setGameOver(v: boolean): void
+  setBoss(b: GameStore['boss']): void
+  setCanInteract(v: boolean): void
+
+  useItem(id: ItemId): boolean
+  equip(id: ItemId): void
+  unequip(slot: Slot): void
+  craft(id: Recipe['id']): boolean
+
+  setSettings(patch: Partial<Settings>): void
 }
 
-let toastKey = 0
+const kv = browserStore()
+const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+let noticeId = 0
 
-export const useGame = create<GameState>()(
-  persist(
-    (set, get) => {
-      /** Applies a progress change, awards achievements and queues celebrations. */
-      const commit = (next: Progress) => {
-        const before = level(xp(get().progress)).level
-        const { progress, unlocked } = awardAchievements(next)
-        const after = level(xp(progress)).level
-        const toasts: Toast[] = unlocked.map((id) => ({ key: ++toastKey, kind: 'achievement', id }))
-        if (after > before) toasts.push({ key: ++toastKey, kind: 'level', level: after })
-        set((state) => ({ progress, toasts: [...state.toasts, ...toasts] }))
-      }
+const loadSettings = (): Settings => {
+  try {
+    return parseSettings(kv?.getItem(SETTINGS_KEY) ?? null, prefersReduced)
+  } catch {
+    return parseSettings(null, prefersReduced)
+  }
+}
 
-      return {
-        progress: emptyProgress(),
-        sound: true,
-        toasts: [],
-        newGame: () => set({ progress: { ...emptyProgress(), started: true }, toasts: [] }),
-        seeIntro: () => set((s) => ({ progress: { ...s.progress, introSeen: true } })),
-        completeMission: (id, answers) => {
-          const { progress, reward } = recordMission({ ...get().progress, started: true }, id, answers)
-          const before = get().progress
-          commit(progress)
-          // Achievement coins count as part of this mission's reward.
-          return { ...reward, coins: coins(get().progress) - coins(before) }
-        },
-        discover: (list, id) => {
-          const p = get().progress
-          if (p[list].includes(id)) return
-          commit({ ...p, started: true, [list]: [...p[list], id] })
-        },
-        spend: (amount) => {
-          const p = get().progress
-          if (coins(p) < amount) return false
-          set({ progress: { ...p, coinsSpent: p.coinsSpent + amount } })
-          return true
-        },
-        reset: () => set({ progress: emptyProgress(), toasts: [] }),
-        toggleSound: () => set((s) => ({ sound: !s.sound })),
-        dismissToast: (key) => set((s) => ({ toasts: s.toasts.filter((t) => t.key !== key) })),
+const closedUi = { paused: false, panel: null, dialogue: null, gameOver: false } as const
+
+export const useGame = create<GameStore>()((set, get) => {
+  const enter = (slot: number, save: SaveData, dialogue: Script | null = null) => {
+    live.x = save.world.x
+    live.y = save.world.y
+    live.playTime = save.playTime
+    set((st) => ({ screen: 'game', slot, save, ui: { ...closedUi, dialogue }, notices: [], boss: null, epoch: st.epoch + 1, saveError: false }))
+  }
+
+  return {
+    screen: 'title',
+    slot: null,
+    save: newSave(),
+    ui: { ...closedUi },
+    settings: loadSettings(),
+    notices: [],
+    boss: null,
+    canInteract: false,
+    epoch: 0,
+    saveError: false,
+
+    newGame(slot) {
+      const save = newSave()
+      save.world.flags = ['intro_seen']
+      writeSlot(kv, slot, save)
+      enter(slot, save, { speaker: 'archive', text: 'dlg.archive.intro' })
+    },
+    loadSlot(slot) {
+      const s = readSlot(kv, slot)
+      if (s.state !== 'ok') return false
+      enter(slot, s.data)
+      return true
+    },
+    deleteSlot(slot) {
+      deleteSlot(kv, slot)
+    },
+    saveNow() {
+      const { slot, save } = get()
+      if (slot === null) return false
+      const data: SaveData = { ...save, savedAt: new Date().toISOString(), playTime: Math.floor(live.playTime), world: { ...save.world, x: live.x, y: live.y } }
+      const ok = writeSlot(kv, slot, data)
+      set({ save: data, saveError: !ok })
+      return ok
+    },
+    retry() {
+      const { slot } = get()
+      if (slot === null || !get().loadSlot(slot)) get().quitToTitle()
+    },
+    quitToTitle() {
+      set({ screen: 'title', ui: { ...closedUi }, boss: null, notices: [] })
+    },
+
+    update(f) {
+      set((st) => ({ save: f(st.save) }))
+    },
+    apply(o, autosave = true) {
+      set((st) => ({ save: o.save, notices: [...st.notices, ...o.notices.map((n) => ({ ...n, id: ++noticeId }))] }))
+      if (autosave && o.notices.some((n) => n.kind === 'quest')) get().saveNow()
+    },
+    notify(...n) {
+      set((st) => ({ notices: [...st.notices, ...n.map((x) => ({ ...x, id: ++noticeId }))] }))
+    },
+    dismissNotice(id) {
+      set((st) => ({ notices: st.notices.filter((n) => n.id !== id) }))
+    },
+
+    openDialogue(script) {
+      set((st) => ({ ui: { ...st.ui, dialogue: script } }))
+    },
+    closeDialogue(effect) {
+      set((st) => ({ ui: { ...st.ui, dialogue: null } }))
+      if (!effect) return
+      if (effect === 'open_bench') return get().openPanel('bench')
+      get().apply(applyEffect(get().save, effect))
+    },
+    openPanel(panel) {
+      set((st) => ({ ui: { ...st.ui, panel, paused: panel !== 'bench' ? true : st.ui.paused } }))
+    },
+    closePanel() {
+      set((st) => ({ ui: { ...st.ui, panel: null, paused: st.ui.panel === 'bench' ? false : st.ui.paused } }))
+    },
+    togglePause() {
+      set((st) => (st.ui.paused ? { ui: { ...st.ui, paused: false, panel: null } } : { ui: { ...st.ui, paused: true } }))
+    },
+    setGameOver(v) {
+      set((st) => ({ ui: { ...st.ui, gameOver: v, dialogue: null, panel: null, paused: false } }))
+    },
+    setBoss(boss) {
+      set({ boss })
+    },
+    setCanInteract(v) {
+      if (get().canInteract !== v) set({ canInteract: v })
+    },
+
+    useItem(id) {
+      const next = useItem(get().save, id)
+      if (!next) return false
+      set({ save: next })
+      return true
+    },
+    equip(id) {
+      const inv = equip(get().save.inventory, id)
+      if (inv) set((st) => ({ save: { ...st.save, inventory: inv } }))
+    },
+    unequip(slot) {
+      set((st) => ({ save: { ...st.save, inventory: unequip(st.save.inventory, slot) } }))
+    },
+    craft(id) {
+      const next = craft(get().save, id)
+      if (!next) return false
+      set({ save: next })
+      get().notify({ key: 'notice.item', params: { item: id, amount: 1 }, kind: 'item' })
+      get().saveNow()
+      return true
+    },
+
+    setSettings(patch) {
+      const settings = { ...get().settings, ...patch }
+      set({ settings })
+      try {
+        kv?.setItem(SETTINGS_KEY, JSON.stringify(settings))
+      } catch {
+        // Settings still apply for this visit.
       }
     },
-    {
-      name: 'pixel-resistance-save',
-      version: SAVE_VERSION,
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ progress: s.progress, sound: s.sound }),
-      // Older or foreign saves are not trusted: they go through the same sanitizer.
-      migrate: (saved) => saved as GameState,
-      merge: (saved, current) => {
-        const s = (saved ?? {}) as Partial<GameState>
-        return { ...current, progress: sanitize(s.progress), sound: s.sound !== false }
-      },
-    },
-  ),
-)
+  }
+})
 
-export const hasSave = (p: Progress) => p.started || Object.keys(p.missions).length > 0
+/** True while a menu, conversation or the defeat screen should freeze gameplay. */
+export const isBlocked = (s: Pick<GameStore, 'ui'>) => s.ui.paused || s.ui.panel !== null || s.ui.dialogue !== null || s.ui.gameOver
+
+export { readSlot, kv as saveStore }

@@ -1,51 +1,67 @@
-# PIXEL RESISTANCE
+# PIXEL RESISTANCE — ECHOES OF THE LAST SIGNAL
 
-Jeu rétro 8/16 bits, bilingue français / anglais, réalisé pour la Nuit de l'Info 2025 : défi **« On veut du gros pixel ! »** (IUT du Littoral Côte d'Opale, département Informatique), sur le sujet national *« Le Village Numérique Résistant : comment les établissements scolaires peuvent tenir tête aux Big Tech ? »*.
+*Explore the galaxy. Fight the machines. Restore the signal.*
 
-On y aide un village à reprendre son indépendance numérique : missions à choix, fiches sur les menaces, atelier de solutions, progression et écran de victoire avec des recommandations personnalisées.
+A top-down 16-bit science-fiction action RPG that runs in the browser, made for the Nuit de l'Info 2025 (challenge « On veut du gros pixel ! »). French by default, English available in the settings.
 
-Projet compagnon : [NIRD WORLD](https://nird-world.vercel.app), un village à explorer avec un diagnostic d'indépendance numérique de l'école et une bibliothèque de logiciels libres.
+Year 2847. OVERLORD, an artificial intelligence, has seized THE NEXUS — the network linking humanity's colonies — and silences them one by one. NOVA-7 is the last free colony. Kael, a former Nexus engineer, follows an ancient transmission into the Forgotten Wilds. The story echoes the national subject — communities resisting centralised control — without turning the game into a lesson.
 
-## Écrans
+## Chapter 1 (this version)
 
-| Écran | Route | Contenu |
+- **Nova-7**, the colony hub: Commander Vey (main quest), Juno and her workbench (crafting and upgrades), Tamsin the archivist (lore and a hint).
+- **The Forgotten Wilds**: grass, bioluminescent plants, a pond and bridge, a crystal field, a ruined outpost, a hidden grove behind a fake bush, and the Iron Warden's arena.
+- **Real-time combat**: Pulse Blade (directional hits, knockback), Plasma Blaster (projectiles, uses energy), Energy Dash (invulnerable burst), damage numbers, hit sparks, screen shake.
+- **Enemies with state-machine AI**: Scout Drones (patrol, spot, chase, telegraphed lunge) and Security Sentinels (track, keep their distance, charge then fire). Walls block their sight and their movement.
+- **Mini-boss — the Iron Warden**: missile barrage (target rings), sweeping laser (stopped by pillars), charge (stunned if it hits a wall), a faster second phase, a death sequence and unique rewards.
+- **Quests**: *The Lost Transmission* (leave the colony, explore, find Rook's device, defeat its guardians, report back) then *The Iron Warden*.
+- **Progression**: XP and 7 levels (levelling up restores the player), credits, components, equipment slots (blade, blaster, armor, module), consumables, crafting.
+- **Saves**: 3 slots, autosave on area changes and quest steps, manual save from the pause menu, delete with confirmation. Saves are versioned and validated: damaged, outdated or tampered data is detected or repaired, never trusted. Every enemy and pickup pays its reward only once per save.
+
+## Controls
+
+| Action | Keyboard / mouse | Touch |
 | --- | --- | --- |
-| Menu principal | `/` | Logo animé, histoire, Nouvelle partie / Continuer, Comment jouer, La Résistance, langue, son |
-| Village | `/village` | Carte en tuiles jouable au clavier (flèches, ZQSD, WASD) ou à la croix tactile, 7 lieux à débloquer, 4 habitants |
-| Missions | `/missions` | 5 missions narratives, déblocage progressif, étoiles et meilleur score |
-| Fiches ennemies | `/ennemis` | 6 menaces : description, exemple, conséquences, parades, nuance |
-| Atelier | `/atelier` | 7 modules de solutions, chacun avec une question de contrôle |
-| QG | `/qg` | Statistiques, succès, remise à zéro |
-| Victoire | `/victoire` | Score final, bilan par axe, recommandations selon les choix du joueur |
+| Move | WASD, ZQSD or arrows | Joystick |
+| Pulse Blade | J or left click | Blade |
+| Plasma Blaster | K or right click (aims at the mouse) | Blast |
+| Energy Dash | Space | Dash |
+| Talk / interact | E | Use |
+| Healing / Energy Cell | 1 / 2 | Heal |
+| Inventory | I | Items |
+| Pause | Esc | Pause |
 
-**Règles de progression.** L'XP et les pièces sont *calculées* à partir de ce que le joueur a accompli (meilleur score par mission, fiches lues, modules maîtrisés, lieux et habitants découverts). Rejouer une mission ne rapporte que la différence quand on bat son record : impossible de « farmer ». Les indices du mentor coûtent 5 pièces et réduisent donc le score final. La sauvegarde (LocalStorage) est vérifiée au chargement : une sauvegarde corrompue ou modifiée est réparée, jamais crue sur parole.
+Touch controls appear automatically on touch screens (Settings → Touch controls to force them on or off). In portrait they sit below the game; in landscape they occupy the corners.
 
-## Code
-
-React 19, TypeScript, Vite, Tailwind CSS 4, Motion (Framer Motion), React Router, Zustand, i18next, Lucide.
+## Architecture
 
 ```
 src/
-  main.tsx            point d'entrée et routes
-  index.css           Tailwind et jetons de couleurs / polices
-  game/content.ts     structure du jeu (missions, bonnes réponses, lieux, succès) — aucun texte
-  game/progress.ts    règles pures : XP, pièces, niveaux, déblocages, succès, recommandations, sanitizer
-  game/store.ts       état Zustand persistant
-  game/sound.ts       effets chiptune générés avec Web Audio (aucun fichier audio)
-  game/game.test.ts   tests : parité FR/EN, anti-farm, sauvegardes corrompues…
-  locales/fr.ts       tous les textes en français (langue par défaut)
-  locales/en.ts       traduction anglaise, typée sur fr.ts (une clé manquante ne compile pas)
-  i18n.ts             instance i18next
-  sprites.tsx         pixel art original dessiné en grilles de caractères, rendu en SVG
-  ui.tsx              PixelButton, PixelCard, PixelDialog, PixelModal, PixelBadge, PixelProgressBar, PixelTooltip, LanguageSwitcher…
-  PixelLayout.tsx     coquille du jeu : HUD, navigation, notifications de succès
-  pixel.css           système de design pixel (bordures crantées, boutons, carte, animations)
-  pages/              un fichier par écran
+  game/              rules and data: no Phaser, no React (unit-tested with node:test)
+    data.ts          items, enemies, levels, quests, recipes, player tuning
+    maps.ts          Nova-7 (hand-drawn tile map) and the Forgotten Wilds (built from shapes), placements, reachability
+    state.ts         save shape, stats, inventory, rewards (grant once), crafting
+    story.ts         quests, conversations, world events
+    save.ts          slots, settings, validation of untrusted LocalStorage data
+    store.ts         Zustand store shared by Phaser and React
+    game.test.ts     maps, combat maths, inventory, full chapter playthrough, saves, texts
+  engine/            Phaser 3
+    art.ts           all pixel art, drawn in code (tiles, characters, machines, boss, effects, icons)
+    audio.ts         sound effects and chiptune music synthesised with Web Audio
+    boot.ts          textures, animations, game config (384 x 216, pixel-perfect)
+    world.ts         tile maps, collisions, camera, combat, pickups, interactions, triggers
+    actors.ts        Kael, drones, sentinels, the Iron Warden
+    hud.ts           in-canvas HUD (health, energy, XP, credits, quick items, objective, boss bar)
+    input.ts         touch-control state read by the game loop
+  app/               React screens: title, slots, settings, controls, credits, dialogue, pause,
+                     inventory, character, journal, workbench, game over, touch controls
+  locales/           French (default) and English texts
 ```
 
-## Commandes
+Phaser renders the world at 384 × 216 and scales it by a whole number whenever that fills the screen well (nearest-neighbour). React only re-renders for menus; the game loop never goes through React.
 
-Prérequis : Node.js 22 ou plus récent.
+## Commands
+
+Requires Node.js 22 or newer.
 
 ```powershell
 npm install
@@ -54,8 +70,6 @@ npm install
 ```powershell
 npm run dev
 ```
-
-Puis ouvrir http://localhost:5173.
 
 ```powershell
 npm run typecheck
@@ -73,19 +87,9 @@ npm run build
 npm run preview
 ```
 
-La production est servie depuis `dist/` (configuration Vercel dans `vercel.json`).
+## Licences and credits
 
-## Accessibilité
-
-Navigation complète au clavier (menu aux flèches, carte au clavier, réponses avec A/B/C/D), fenêtres modales natives `<dialog>`, lien d'évitement, textes de dialogue lisibles par les lecteurs d'écran, respect de `prefers-reduced-motion` (animations, confettis et effet machine à écrire désactivés), attribut `lang` mis à jour selon la langue choisie.
-
-## Licences et crédits
-
-- Code : licence [MIT](LICENSE).
-- Pixel art (personnages, bâtiments, ennemis, pièces, icône) : original, dessiné en code dans `sprites.tsx`, sous la même licence MIT.
-- Sons : générés à la volée par l'API Web Audio, aucun fichier audio tiers.
-- Polices : [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (CodeMan38), [VT323](https://fonts.google.com/specimen/VT323) (Peter Hull) et [Instrument Sans](https://fonts.google.com/specimen/Instrument+Sans), sous SIL Open Font License 1.1, chargées depuis Google Fonts.
-- Icônes : [Lucide](https://lucide.dev) (licence ISC).
-- Aucun personnage, logo ou sprite issu d'un jeu commercial n'est utilisé.
-
-Les noms de logiciels et de services cités (Windows, LibreOffice, Moodle, Nextcloud…) appartiennent à leurs détenteurs respectifs et ne servent qu'à illustrer des situations réelles.
+- Code: [MIT](LICENSE).
+- Pixel art, sound effects and music: original, created in code for this project, under the same MIT licence. No asset, sprite, character or music from a commercial game is used.
+- [Phaser 3](https://phaser.io) (MIT), React, Zustand, i18next (MIT).
+- Fonts: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P), [VT323](https://fonts.google.com/specimen/VT323) and [Instrument Sans](https://fonts.google.com/specimen/Instrument+Sans) (SIL Open Font License 1.1), loaded from Google Fonts.
