@@ -1,0 +1,38 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-px-navy: #17213b;
+  --color-px-night: #0e1528;
+  --color-px-cream: #fff1c7;
+  --color-px-red: #e84855;
+  --color-px-red-dark: #b82e3a;
+  --color-px-blue: #4776d0;
+  --color-px-blue-dark: #33589f;
+  --color-px-green: #63b75d;
+  --color-px-green-dark: #3e8a39;
+  --color-px-gold: #f5c451;
+  --color-px-ink: #1b1f2e;
+
+  --font-pixel: 'Press Start 2P', ui-monospace, monospace;
+  --font-retro: 'VT323', ui-monospace, monospace;
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-px-navy font-sans text-px-cream antialiased;
+  }
+
+  ::selection {
+    background: var(--color-px-gold);
+    color: var(--color-px-ink);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
