@@ -89,7 +89,7 @@ export class HudScene extends Phaser.Scene {
       this.quick[1]!.setText(`${count(s.inventory, 'energy_cell')}`)
       this.objective.setText(obj ? `> ${i18n.t(`quests.${obj.quest}.steps.${obj.step}`)}` : '')
       if (st.boss) {
-        this.bossName.setText(i18n.t('hud.boss'))
+        this.bossName.setText(i18n.t(st.boss.name === 'arbiter' ? 'hud.arbiter' : 'hud.boss'))
         bar(92, 198, 200, 6, st.boss.hp / st.boss.max, 0xff4d5e, 0x3a1420)
       } else this.bossName.setText('')
     }

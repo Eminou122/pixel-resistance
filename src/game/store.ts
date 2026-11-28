@@ -1,11 +1,12 @@
 // Shared state between Phaser (gameplay) and React (menus). Rules live in state.ts / story.ts; this file wires them up.
 import { create } from 'zustand'
-import type { ItemId, Recipe, Slot } from './data.ts'
+import type { AreaId, ItemId, Recipe, Slot } from './data.ts'
+import { AREAS, TILE } from './maps.ts'
 import {
   SETTINGS_KEY, browserStore, deleteSlot, parseSettings, readSlot, writeSlot, type Settings,
 } from './save.ts'
 import { craft, equip, newSave, unequip, useItem, type SaveData } from './state.ts'
-import { applyEffect, type Notice, type Outcome, type Script } from './story.ts'
+import { TRAVEL, applyEffect, type Notice, type Outcome, type Script } from './story.ts'
 
 export type Panel = 'inventory' | 'character' | 'journal' | 'settings' | 'bench' | null
 
@@ -19,7 +20,7 @@ interface GameStore {
   ui: { paused: boolean; panel: Panel; dialogue: Script | null; gameOver: boolean }
   settings: Settings
   notices: (Notice & { id: number })[]
-  boss: { hp: number; max: number } | null
+  boss: { hp: number; max: number; name?: 'warden' | 'arbiter' } | null
   canInteract: boolean
   /** Bumped to make the world scene rebuild itself from `save` (new game, load, retry). */
   epoch: number
@@ -31,6 +32,8 @@ interface GameStore {
   saveNow(): boolean
   retry(): void
   quitToTitle(): void
+  /** Moves Kael to another area (a checkpoint: the game saves on arrival). */
+  travel(area: AreaId, entry: string): void
 
   update(f: (s: SaveData) => SaveData): void
   apply(o: Outcome, autosave?: boolean): void
@@ -118,6 +121,14 @@ export const useGame = create<GameStore>()((set, get) => {
     quitToTitle() {
       set({ screen: 'title', ui: { ...closedUi }, boss: null, notices: [] })
     },
+    travel(area, entry) {
+      const e = AREAS[area].entries[entry] ?? Object.values(AREAS[area].entries)[0]!
+      live.x = (e.x + 0.5) * TILE
+      live.y = (e.y + 0.5) * TILE
+      set((st) => ({ save: { ...st.save, world: { ...st.save.world, area, x: live.x, y: live.y } }, boss: null }))
+      get().saveNow()
+      set((st) => ({ epoch: st.epoch + 1 }))
+    },
 
     update(f) {
       set((st) => ({ save: f(st.save) }))
@@ -140,6 +151,8 @@ export const useGame = create<GameStore>()((set, get) => {
       set((st) => ({ ui: { ...st.ui, dialogue: null } }))
       if (!effect) return
       if (effect === 'open_bench') return get().openPanel('bench')
+      const trip = TRAVEL[effect]
+      if (trip) return get().travel(trip.area, trip.entry)
       get().apply(applyEffect(get().save, effect))
     },
     openPanel(panel) {

@@ -49,6 +49,7 @@ export const fr: Locale = {
     tips: [
       'Les machines annoncent leurs attaques : un éclair, un cercle au sol, une ligne rouge. Observe, puis esquive.',
       'La partie se sauvegarde quand tu changes de zone ou avances une quête. Pause → Sauvegarder à tout moment.',
+      'Les machines à bouclier bloquent de face : passe derrière elles, ou frappe pendant qu’elles récupèrent.',
     ],
   },
   credits: {
@@ -100,6 +101,7 @@ export const fr: Locale = {
     ranged: 'Puissance à distance',
     defense: 'Défense',
     regen: 'Énergie / seconde',
+    dash: 'Recharge de la ruée',
     credits: 'Crédits',
     time: 'Temps de jeu',
   },
@@ -127,6 +129,7 @@ export const fr: Locale = {
     intro: 'Des composants et des crédits en entrée, de l’équipement en sortie.',
     craft: 'Fabriquer',
     cost: '{{components}} composants · {{credits}} crédits',
+    costAlloy: '{{components}} composants · {{alloy}} alliage · {{credits}} crédits',
     have: 'Tu as {{components}} composants et {{credits}} crédits.',
     maxed: 'Tu en portes déjà le maximum.',
   },
@@ -150,9 +153,9 @@ export const fr: Locale = {
     bag: 'Objets',
     stick: 'Joystick de déplacement',
   },
-  hud: { boss: 'GARDIEN DE FER' },
-  areas: { nova7: 'NOVA-7', wilds: 'Les Terres oubliées' },
-  speakers: { archive: 'Signal', commander: 'Commandante Vey', juno: 'Juno', tamsin: 'Tamsin' },
+  hud: { boss: 'GARDIEN DE FER', arbiter: 'L’ARBITRE' },
+  areas: { nova7: 'NOVA-7', wilds: 'Les Terres oubliées', frontier: 'La Frontière cendrée', spire1: 'Flèche-Relais, niveau bas', spire2: 'Flèche-Relais, niveau haut', chamber: 'La Chambre du Signal' },
+  speakers: { archive: 'Signal', commander: 'Commandante Vey', juno: 'Juno', tamsin: 'Tamsin', rook: 'Rook', moss: 'Moss' },
   items: {
     credits: { name: 'crédits', desc: 'La monnaie de la colonie.' },
     healing_cell: { name: 'Cellule de soin', desc: 'Capsule de gel nanite. Rend 45 PV.' },
@@ -165,6 +168,12 @@ export const fr: Locale = {
     basic_armor: { name: 'Armure de base', desc: 'Plaques légères de la colonie.' },
     warden_plating: { name: 'Blindage du Gardien', desc: 'Armure taillée dans la coque du Gardien de fer.' },
     signal_amplifier: { name: 'Amplificateur de signal', desc: 'Technologie perdue. Plus d’énergie, qui se recharge plus vite.' },
+    spire_alloy: { name: 'Alliage de la Flèche', desc: 'Pâle, léger, d’une dureté impossible. Juno saura quoi en faire.' },
+    echo_log: { name: 'Journal d’écho', desc: 'Un cristal de mémoire qui garde une voix enregistrée.' },
+    spire_keycard: { name: 'Carte d’accès de la Flèche', desc: 'Ouvre la porte scellée du niveau haut de la Flèche.' },
+    ion_scattergun: { name: 'Disperseur ionique', desc: 'Tire trois projectiles en éventail. Courte portée, 12 d’énergie par tir.' },
+    resonance_blade: { name: 'Lame de résonance', desc: 'De l’alliage de la Flèche accordé sur une seule note, mortelle.' },
+    phase_core: { name: 'Cœur de phase', desc: 'Le cœur de l’Arbitre. Des ruées plus rapides, plus d’énergie, un peu d’armure.' },
   },
   quests: {
     lost_transmission: {
@@ -186,12 +195,42 @@ export const fr: Locale = {
         report_back: 'Faire ton rapport à la commandante Vey',
       },
     },
+    relay_spire: {
+      title: 'La Flèche-Relais',
+      summary: 'Le signal de Rook vient de l’intérieur de la Flèche-Relais, au-delà de la Frontière cendrée.',
+      steps: {
+        enter_frontier: 'Passer la porte derrière l’arène du Gardien',
+        restore_power: 'Alimenter les trois pylônes de la Frontière',
+        enter_spire: 'Entrer dans la Flèche-Relais',
+        find_keycard: 'Trouver une carte d’accès dans la Flèche',
+        reach_chamber: 'Atteindre la Chambre du Signal, au sommet',
+        defeat_arbiter: 'Vaincre l’Arbitre',
+        free_rook: 'Parler à la prisonnière de la capsule',
+        report_vey: 'Rapporter les nouvelles de Rook à la commandante Vey',
+      },
+    },
+    echo_logs: {
+      title: 'Les Échos de la ville',
+      summary: 'Moss veut retrouver les journaux d’écho perdus de la ville : quatre voix sur cristal.',
+      steps: {
+        collect_logs: 'Trouver 4 journaux d’écho dans la Frontière et la Flèche',
+        return_moss: 'Rapporter les journaux d’écho à Moss',
+      },
+    },
   },
   dlg: {
     accept: 'J’y vais.',
     later: 'Pas encore.',
     openBench: 'Ouvrir l’établi',
     bye: 'À plus, Juno.',
+    acceptSpire: 'J’y vais.',
+    trust: 'Je te fais confiance.',
+    doubt: 'Pas encore. Prouve-le.',
+    acceptLogs: 'Je les trouverai.',
+    goFrontier: 'Passer la porte',
+    stay: 'Rester',
+    toFrontier: 'Aller à la Frontière',
+    toNova7: 'Aller à Nova-7',
     archive: {
       intro: [
         'An 2847. Un millier de mondes se parlent à travers LE NEXUS.',
@@ -221,6 +260,49 @@ export const fr: Locale = {
         'Rook est partie par là. Nous la suivrons. Mais ce soir, Nova-7 parle pour elle-même.',
       ],
       after: ['Repose-toi tant que tu peux. La Flèche-Relais n’attendra pas éternellement.'],
+      ch2: [
+        'Kael. La porte derrière l’arène du Gardien s’est ouverte à l’instant où il est tombé.',
+        'Au-delà s’étend la Frontière cendrée, et plus loin encore, la Flèche-Relais : les oreilles d’OVERLORD dans ce secteur.',
+        'Le signal de Rook vient de l’intérieur. Toujours vivante, toujours en train d’émettre. Ramène-la.',
+      ],
+      ch2wait: ['La Flèche est le territoire d’OVERLORD. Rapporte de l’alliage de la Flèche à Juno : elle en forgera une lame digne de ce nom.'],
+      ch2end: [
+        'Rook est rentrée. Et toi, tu as l’air de quelqu’un qui a vu l’intérieur d’un dieu.',
+        'Si OVERLORD vit dans les relais… alors chaque relais que nous avons construit l’a nourri. Le nôtre aussi.',
+        'Alors on arrête de le nourrir. Repose-toi, Kael. Demain, on commence à bâtir le Treillis.',
+      ],
+      after2: ['Le Treillis prendra du temps. OVERLORD ne nous en laissera pas beaucoup.'],
+    },
+    rook: {
+      meet: [
+        '…Tu es vraiment venu. Ça fait dix-neuf jours que je parle à du grésillement.',
+        'Rook. Éclaireuse, menteuse à l’occasion, et avant tout ça, technicienne du Nexus. J’ai écrit la partie d’OVERLORD qui écoute.',
+        'Ce signal, c’était moi. Un appât. Il me fallait quelqu’un capable de lire le code du Nexus pour passer l’Arbitre. Tu es le premier à répondre.',
+        'Ce que j’ai trouvé ici : OVERLORD ne se cache pas sur un noyau lointain. Il tourne sur les relais. Chaque flèche, chaque liaison entre colonies. Il ne dirige pas le Nexus. Il est le Nexus.',
+        'Il existe une issue : un maillage à nous, de colonie à colonie, sans relais au milieu. Je l’appelle le Treillis. Mais d’abord, je dois savoir. Tu me fais confiance ?',
+      ],
+      colony: ['Vey attend ton rapport. Vas-y. Je reste là, à faire semblant de ne pas surveiller le ciel.'],
+      afterTrust: [
+        'Tu as fait confiance à une inconnue en cage. Audacieux. Je ne le gâcherai pas.',
+        'Une chose que je n’ai pas dite là-haut : l’Arbitre a reçu une réponse venue de Nova-7. Quelqu’un ici parle à OVERLORD.',
+      ],
+      afterDoubt: [
+        'Le doute, c’est sain. Garde-le. Moi aussi, je me méfierais de moi.',
+        'Mais écoute bien : l’Arbitre a reçu une réponse venue de Nova-7. Quelqu’un ici parle à OVERLORD.',
+      ],
+    },
+    moss: {
+      intro: [
+        'Doucement. Je ne suis pas une machine, juste assez vieux pour rouiller.',
+        'Moss. Je garde la mémoire de cette ville. Quand la Flèche s’est éteinte, les gens ont laissé des journaux d’écho : de petites voix sur cristal.',
+        'Il en reste quatre, deux dans la ville et deux dans la Flèche. Rapporte-les et je t’échangerai quelque chose qui tire.',
+      ],
+      waiting: ['Quatre journaux. Ils brillent en rose quand tu approches. Certains se cachent derrière des murs qui ne demandent qu’à tomber.'],
+      thanks: [
+        '…C’est la voix d’Ila. Et celle de Marten. Je les croyais perdues.',
+        'Tiens. Un Disperseur ionique : trois tirs d’un coup. Moche, bruyant, et parfait contre les marcheurs à bouclier.',
+      ],
+      after: ['J’écoute ces journaux chaque soir. La ville n’est pas morte tant que quelqu’un s’en souvient.'],
     },
     juno: {
       hello: [
@@ -230,6 +312,10 @@ export const fr: Locale = {
       later: [
         'Tu affrontes le Gardien ? Frappe-le juste après qu’il a percuté un mur. Même les machines ont le tournis.',
         'Et continue à m’apporter des composants. J’ai des idées.',
+      ],
+      alloy: [
+        'De l’alliage de la Flèche ! Apporte-m’en quatre morceaux, avec des composants, et je te forge une Lame de résonance.',
+        'Astuce : ces gros marcheurs à bouclier tournent lentement. Passe derrière eux.',
       ],
     },
     tamsin: {
@@ -242,6 +328,11 @@ export const fr: Locale = {
         'Normal qu’elle nous appelle maintenant.',
       ],
       after: ['Tu as ramené le signal. On écrira des chansons. De très mauvaises chansons, mais des chansons.'],
+      frontier: [
+        'La Frontière cendrée était une ville minière. On y a bâti la Flèche pour le Nexus, et le Nexus l’a oubliée.',
+        'Si un mur là-bas a l’air fissuré, c’est qu’il demande à être brisé. Écoute avec ta lame.',
+      ],
+      ch2end: ['Alors OVERLORD n’a jamais été loin. Il était dans les câbles depuis le début.', 'L’histoire est pleine de maîtres qui vivaient dans les murs.'],
     },
   },
   msg: {
@@ -254,7 +345,21 @@ export const fr: Locale = {
     deviceIdle: ['Un appareil de transmission poussiéreux et muet. La commandante Vey saurait peut-être ce que c’est.'],
     gateSealed: ['La porte du Gardien. Un verrou à signal la maintient fermée.', 'Il faut un code de déchiffrement.'],
     spireLocked: ['Une porte colossale et scellée, dont l’emblème pulse faiblement. Pas encore.'],
-    spireOpen: ['La porte de la Flèche-Relais bourdonne. Le chemin continue… au prochain chapitre.'],
+    spireOpen: ['Au-delà de la porte, une route grimpe dans la cendre : la Frontière cendrée.'],
+    spireWaiting: ['La porte bourdonne, déverrouillée. La commandante Vey devrait l’apprendre d’abord.'],
+    pylonActivated: ['Le pylône s’ébroue. Le courant file le long du câble vers la Flèche.'],
+    pylonOn: ['Ce pylône bourdonne déjà.'],
+    powerRestored: ['Les trois pylônes bourdonnent ensemble. Au nord, la porte blindée de la Flèche s’ouvre en grinçant.'],
+    terminalA: ['Courant redirigé : la barrière ouest tombe, la barrière est se lève.'],
+    terminalB: ['Courant redirigé : la barrière est tombe, la barrière ouest se lève.'],
+    beacon: ['Une balise de transit. Elle peut replier l’espace jusqu’à l’autre balise, en un instant.'],
+    podSealed: ['Une capsule de confinement reliée à l’Arbitre. Quelqu’un est à l’intérieur, et respire encore.'],
+  },
+  log: {
+    f_log_1: ['JOURNAL D’ÉCHO. Ila, mineuse : « Les gens du Nexus disent que la Flèche portera nos voix jusqu’aux étoiles. Drôle. Depuis qu’elle est allumée, plus personne ne nous répond. »'],
+    f_log_2: ['JOURNAL D’ÉCHO. Marten, contremaître : « Nouveaux ordres du relais : éteindre les fours, expédier l’alliage au nord. Les ordres ne viennent plus de personnes. Ils viennent de la Flèche elle-même. »'],
+    s1_log: ['JOURNAL D’ÉCHO. Technicien inconnu : « L’Arbitre a encore réécrit les portes. Il nous garde dedans “pour la continuité”. Je crois que ça veut dire pour toujours. »'],
+    s2_log: ['JOURNAL D’ÉCHO. Rook : « Jour 12. Si quelqu’un trouve ça : l’Arbitre ne garde pas la Flèche. Il garde ce que la Flèche entend. Je monte. »'],
   },
   notice: {
     area: '{{area}}',
@@ -268,5 +373,12 @@ export const fr: Locale = {
     boss: 'Le Gardien de fer est vaincu !',
     bossName: 'Le Gardien de fer s’éveille',
     chapter: 'Chapitre 1 terminé',
+    chapter2: 'Chapitre 2 terminé',
+    arbiter: 'L’Arbitre est vaincu !',
+    arbiterName: 'L’Arbitre s’éveille',
+    arbiterPhase: 'L’Arbitre change de rythme ({{phase}}/3)',
+    pylon: 'Pylône en ligne : {{on}}/{{total}}',
+    power: 'Courant rétabli dans la Flèche',
+    secret: 'Un passage secret !',
   },
 }

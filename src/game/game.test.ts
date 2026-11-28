@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ITEMS, QUESTS, RECIPES, XP_TABLE } from './data.ts'
+import { ITEMS, MAX_LEVEL, QUESTS, RECIPES, XP_TABLE } from './data.ts'
 import { AREAS, OVERLAY, SOLID, TILE, kindAt, reachable, walkable, type AreaDef } from './maps.ts'
 import { SETTINGS_KEY, latestSlot, parseSave, parseSettings, readSlot, sanitize, writeSlot, type KeyValueStore } from './save.ts'
 import {
@@ -26,7 +26,8 @@ test('maps: everything placed stands on open ground', () => {
       ...area.npcs.map((n) => [n.id, n] as [string, { x: number; y: number }]),
       ...area.pickups.map((p) => [p.id, p] as [string, { x: number; y: number }]),
       ...area.enemies.flatMap((e) => [[e.id, e], ...(e.patrol ? [[`${e.id} patrol`, { x: e.patrol[0], y: e.patrol[1] }]] : [])] as [string, { x: number; y: number }][]),
-      ...area.interactables.map((i) => [i.kind, i] as [string, { x: number; y: number }]),
+      // Pylons and terminals are machines standing on their own (solid) tile.
+      ...area.interactables.filter((i) => i.kind !== 'pylon' && i.kind !== 'terminal').map((i) => [i.kind, i] as [string, { x: number; y: number }]),
     ]
     for (const [name, p] of spots) assert.ok(walkable(area, Math.floor(p.x), Math.floor(p.y)), `${area.id}: ${name} at ${key(p)}`)
   }
@@ -45,7 +46,7 @@ test('maps: Nova-7 exit and every Wilds pickup can be reached on foot', () => {
   assert.ok(open.has('38,17'), 'transmission device')
   // The arena stays shut until its gate opens.
   assert.ok(!open.has(key(wilds.boss!)), 'arena must be sealed')
-  const withGate = reachable(wilds, wilds.entries.nova7!, true)
+  const withGate = reachable(wilds, wilds.entries.nova7!, new Set(['gate']))
   assert.ok(withGate.has(key(wilds.boss!)) && withGate.has('23,33'))
 })
 
@@ -61,7 +62,7 @@ test('stats: levels, equipment bonuses and damage', () => {
   assert.equal(levelForXp(0), 1)
   assert.equal(levelForXp(XP_TABLE[2]! - 1), 1)
   assert.equal(levelForXp(XP_TABLE[2]!), 2)
-  assert.equal(levelForXp(1e9), 7)
+  assert.equal(levelForXp(1e9), MAX_LEVEL)
   const bare = statsFor(0, { melee: null, ranged: null, armor: null, module: null })
   const geared = statsFor(0, { melee: 'arc_blade', ranged: 'plasma_blaster', armor: 'warden_plating', module: 'signal_amplifier' })
   assert.equal(geared.attack - bare.attack, 9)

@@ -2,12 +2,13 @@
 import Phaser from 'phaser'
 import type { NpcId } from '../game/data.ts'
 import { DIRS, LOOKS, buildTileset, droneSheet, fxSheet, humanoidSheet, iconSheet, sentinelSheet, wardenSheet, type Sheet } from './art.ts'
+import { arbiterSheet, fx2Sheet, heavySheet, phantomSheet, technicianSheet } from './art2.ts'
 import { HudScene } from './hud.ts'
 import { WorldScene } from './world.ts'
 
 export const VIEW_W = 384
 export const VIEW_H = 216
-export const CHARACTERS: readonly ('kael' | NpcId)[] = ['kael', 'commander', 'juno', 'tamsin']
+export const CHARACTERS: readonly ('kael' | NpcId)[] = ['kael', 'commander', 'juno', 'tamsin', 'rook', 'moss']
 
 function addSheet(scene: Phaser.Scene, key: string, sheet: Sheet) {
   const tex = scene.textures.addCanvas(key, sheet.canvas)!
@@ -56,6 +57,22 @@ class BootScene extends Phaser.Scene {
     anim(this, 'fx-boom', 'fx', range('boom', 5), 16, 0)
     anim(this, 'fx-marker', 'fx', range('marker', 2), 8)
     addSheet(this, 'icons', iconSheet())
+    // Chapter 2
+    addSheet(this, 'phantom', phantomSheet())
+    anim(this, 'phantom-hover', 'phantom', range('hover', 4), 10)
+    anim(this, 'phantom-warn', 'phantom', range('warn', 2), 14)
+    anim(this, 'phantom-death', 'phantom', range('death', 4), 12, 0)
+    addSheet(this, 'heavy', heavySheet())
+    anim(this, 'heavy-death', 'heavy', range('death', 4), 8, 0)
+    addSheet(this, 'technician', technicianSheet())
+    anim(this, 'technician-walk', 'technician', range('walk', 2), 6)
+    anim(this, 'technician-repair', 'technician', range('repair', 2), 8)
+    anim(this, 'technician-death', 'technician', range('death', 4), 10, 0)
+    addSheet(this, 'arbiter', arbiterSheet())
+    anim(this, 'arbiter-shell', 'arbiter', range('shell', 2), 3)
+    anim(this, 'arbiter-open', 'arbiter', range('open', 2), 6)
+    addSheet(this, 'fx2', fx2Sheet())
+    anim(this, 'fx-mbolt', 'fx2', range('mbolt', 2), 12)
 
     // Dark edges around the screen: gives the scenes depth without hiding the play area.
     const vignette = this.textures.createCanvas('vignette', VIEW_W, VIEW_H)!

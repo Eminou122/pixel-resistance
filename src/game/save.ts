@@ -3,7 +3,7 @@ import {
   AREA_IDS, CREDITS_MAX, FLAGS, ITEMS, ITEM_IDS, QUESTS, QUEST_IDS, SLOTS, XP_MAX,
   type AreaId, type Flag, type ItemId, type QuestId, type Slot,
 } from './data.ts'
-import { AREAS, TILE, walkableAt } from './maps.ts'
+import { AREAS, BREAKABLE_IDS, TILE, walkableAt } from './maps.ts'
 import { SAVE_VERSION, statsFor, type Inventory, type QuestState, type SaveData } from './state.ts'
 
 export interface KeyValueStore {
@@ -31,8 +31,9 @@ const known = <T extends string>(v: unknown, list: readonly T[]): v is T => type
 const idList = (v: unknown, allowed: ReadonlySet<string>) =>
   Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && allowed.has(x)))] : []
 
-const ENEMY_IDS = new Set([...Object.values(AREAS).flatMap((a) => a.enemies.map((e) => e.id)), 'iron_warden'])
-const PICKUP_IDS = new Set(Object.values(AREAS).flatMap((a) => a.pickups.map((p) => p.id)))
+const ENEMY_IDS = new Set([...Object.values(AREAS).flatMap((a) => a.enemies.map((e) => e.id)), 'iron_warden', 'arbiter'])
+// Collected pickups and broken walls share one list.
+const PICKUP_IDS = new Set([...Object.values(AREAS).flatMap((a) => a.pickups.map((p) => p.id)), ...BREAKABLE_IDS])
 
 export function parseSave(raw: string | null): SlotStatus {
   if (raw === null || raw === '') return { state: 'empty' }
@@ -81,6 +82,9 @@ export function sanitize(d: Record<string, unknown>): SaveData {
   }
   // The second quest only exists once the first is finished.
   if (quests.iron_warden && !quests.lost_transmission?.done) delete quests.iron_warden
+  // Chapter 2 starts once Chapter 1 is over; Moss's errand needs Chapter 2 started.
+  if (quests.relay_spire && !quests.iron_warden?.done) delete quests.relay_spire
+  if (quests.echo_logs && !quests.relay_spire) delete quests.echo_logs
 
   const w = isRecord(d.world) ? d.world : {}
   const area: AreaId = known(w.area, AREA_IDS) ? w.area : 'nova7'
@@ -92,6 +96,11 @@ export function sanitize(d: Record<string, unknown>): SaveData {
   if (warden) {
     if (!flags.includes('warden_defeated')) flags = [...flags, 'warden_defeated']
     if (!defeated.includes('iron_warden')) defeated.push('iron_warden')
+  }
+  const arbiter = flags.includes('arbiter_defeated') || defeated.includes('arbiter')
+  if (arbiter) {
+    if (!flags.includes('arbiter_defeated')) flags = [...flags, 'arbiter_defeated']
+    if (!defeated.includes('arbiter')) defeated.push('arbiter')
   }
 
   let x = num(w.x, 0, 10_000, NaN)

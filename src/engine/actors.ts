@@ -2,6 +2,7 @@
 import Phaser from 'phaser'
 import { ENEMIES, PLAYER } from '../game/data.ts'
 import { TILE, type EnemySpawn } from '../game/maps.ts'
+import { statsOf } from '../game/state.ts'
 import { guardsAwake } from '../game/story.ts'
 import { useGame } from '../game/store.ts'
 import { sfx } from './audio.ts'
@@ -94,7 +95,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       const [dx, dy] = moving ? [x / Math.hypot(x, y), y / Math.hypot(x, y)] : FACING_VEC[this.facing]
       this.dashDir = [dx, dy]
       this.dashUntil = time + PLAYER.dashTime
-      this.dashReady = time + PLAYER.dashCooldown
+      this.dashReady = time + PLAYER.dashCooldown - statsOf(useGame.getState().save).dash
       this.invulnUntil = Math.max(this.invulnUntil, time + PLAYER.dashTime + 80)
       sfx('dash')
       world.fx.ghost(this)
@@ -159,6 +160,12 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
   private readonly bar: Phaser.GameObjects.Graphics
   private readonly shield: Phaser.GameObjects.Image | null
   collider: Phaser.Physics.Arcade.Collider | null = null
+  /** Summoned by a boss: gives no reward when destroyed (no farming). */
+  summoned = false
+  protected knockSpeed = 150
+  /** Milliseconds since the previous frame (capped), for turn rates and orbits. */
+  protected dt = 16
+  private lastTime = 0
 
   constructor(scene: WorldScene, spawn: EnemySpawn, texture: string, frame: string) {
     super(scene, (spawn.x + 0.5) * TILE, (spawn.y + 0.5) * TILE - FEET, texture, frame)
@@ -202,6 +209,24 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
     return !p.dead && overlaps(this.body, p.body)
   }
 
+  /** Damage actually taken from a hit coming from (fromX, fromY): shields reduce it. */
+  mitigate(amount: number, _fromX: number, _fromY: number): number {
+    return amount
+  }
+
+  /** Repairs from a Spire Technician. */
+  repair(n: number, time: number) {
+    if (this.dead || this.hp >= this.maxHp) return
+    this.hp = Math.min(this.maxHp, this.hp + n)
+    this.barUntil = time + 2000
+    this.setTint(0x59f39a)
+    this.scene.time.delayedCall(120, () => this.active && this.clearTint())
+  }
+
+  get hurt() {
+    return this.hp < this.maxHp
+  }
+
   /** Returns true when the hit destroys the machine. */
   hit(amount: number, fromX: number, fromY: number, time: number): boolean {
     if (this.dead) return false
@@ -215,14 +240,18 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.setTintFill(0xffffff)
     this.scene.time.delayedCall(70, () => this.active && this.clearTint())
     const a = Math.atan2(this.y - fromY, this.x - fromX)
-    this.setVelocity(Math.cos(a) * 150, Math.sin(a) * 150)
+    this.setVelocity(Math.cos(a) * this.knockSpeed, Math.sin(a) * this.knockSpeed)
     this.knockUntil = time + 140
     if (this.hp > 0) return false
     this.die()
     return true
   }
 
+  /** Extra cleanup for subclasses (beams, effects). */
+  protected onDeath() {}
+
   private die() {
+    this.onDeath()
     this.dead = true
     this.setVelocity(0, 0)
     this.body.enable = false
@@ -249,6 +278,8 @@ export abstract class Enemy extends Phaser.Physics.Arcade.Sprite {
 
   tick(time: number, p: Player) {
     if (this.dead) return
+    this.dt = Math.min(50, time - (this.lastTime || time))
+    this.lastTime = time
     this.setDepth(this.y + 10)
     this.shield?.setPosition(this.x, this.y).setVisible(this.dormant())
     this.drawBar(time)

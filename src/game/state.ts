@@ -48,7 +48,7 @@ export function xpProgress(xp: number) {
 export function statsFor(xp: number, equipped: Inventory['equipped']): Stats {
   const level = levelForXp(xp)
   const l = level - 1
-  const base: Bonus = { maxHp: 80 + 12 * l, maxEnergy: 60 + 6 * l, attack: 6 + 2 * l, ranged: 0, defense: 2 + l, regen: PLAYER.baseRegen }
+  const base: Bonus = { maxHp: 80 + 12 * l, maxEnergy: 60 + 6 * l, attack: 6 + 2 * l, ranged: 0, defense: 2 + l, regen: PLAYER.baseRegen, dash: 0 }
   base.ranged = Math.floor(base.attack * 0.6)
   for (const id of Object.values(equipped)) {
     const bonus = id ? ITEMS[id].bonus : undefined
@@ -58,6 +58,12 @@ export function statsFor(xp: number, equipped: Inventory['equipped']): Stats {
 }
 
 export const statsOf = (s: SaveData) => statsFor(s.player.xp, s.inventory.equipped)
+
+/** Is a hit coming from in front of a shield? (angles in radians; the shield covers 120 degrees) */
+export function frontalBlock(facing: number, attackFrom: number): boolean {
+  const d = Math.atan2(Math.sin(attackFrom - facing), Math.cos(attackFrom - facing))
+  return Math.abs(d) <= Math.PI / 3
+}
 
 /** Damage after the target's defence; every hit does at least 1. */
 export const damage = (attack: number, defense: number) => Math.max(1, Math.round(attack - defense / 2))
@@ -143,6 +149,7 @@ export function canCraft(s: SaveData, recipe: Recipe): boolean {
   const def = ITEMS[recipe.gives]
   return (
     count(s.inventory, 'components') >= recipe.components &&
+    count(s.inventory, 'spire_alloy') >= (recipe.alloy ?? 0) &&
     s.player.credits >= recipe.credits &&
     count(s.inventory, recipe.gives) < def.max
   )
@@ -151,13 +158,17 @@ export function canCraft(s: SaveData, recipe: Recipe): boolean {
 export function craft(s: SaveData, id: Recipe['id']): SaveData | null {
   const recipe = RECIPES.find((r) => r.id === id)
   if (!recipe || !canCraft(s, recipe)) return null
-  const inventory = addItem(removeItem(s.inventory, 'components', recipe.components)!, recipe.gives, 1)
+  let inventory = removeItem(s.inventory, 'components', recipe.components)!
+  if (recipe.alloy) inventory = removeItem(inventory, 'spire_alloy', recipe.alloy)!
+  inventory = addItem(inventory, recipe.gives, 1)
   return { ...s, inventory, player: { ...s.player, credits: s.player.credits - recipe.credits } }
 }
 
 export const hasFlag = (s: SaveData, f: Flag) => s.world.flags.includes(f)
 export const setFlag = (s: SaveData, f: Flag): SaveData =>
   hasFlag(s, f) ? s : { ...s, world: { ...s.world, flags: [...s.world.flags, f] } }
+export const clearFlag = (s: SaveData, f: Flag): SaveData =>
+  hasFlag(s, f) ? { ...s, world: { ...s.world, flags: s.world.flags.filter((x) => x !== f) } } : s
 
 // ---------- New game ----------
 

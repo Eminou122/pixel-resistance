@@ -3,7 +3,7 @@
 export type Sfx =
   | 'ui' | 'confirm' | 'slash' | 'hit' | 'blaster' | 'zap' | 'hurt' | 'dash' | 'pickup' | 'heal' | 'level' | 'quest'
   | 'explode' | 'charge' | 'laser' | 'missile' | 'empty' | 'death' | 'door'
-export type Track = 'title' | 'colony' | 'wilds' | 'boss'
+export type Track = 'title' | 'colony' | 'wilds' | 'boss' | 'frontier' | 'spire' | 'chamber' | 'arbiter'
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
@@ -126,6 +126,37 @@ interface Song {
 }
 
 const SONGS: Record<Track, Song> = {
+  // Chapter 2. Original loops, like the rest.
+  frontier: {
+    // Slow and dusty: a dead town under a red sky.
+    bpm: 88,
+    leadWave: 'triangle',
+    drums: true,
+    lead: [7, null, null, 10, null, 7, 5, null, 3, null, null, 5, null, null, null, null, 7, null, null, 10, null, 12, 10, null, 8, null, 7, null, 5, null, null, null],
+    bass: [-12, null, -12, null, -12, null, -12, null, -9, null, -9, null, -9, null, -9, null, -7, null, -7, null, -7, null, -7, null, -14, null, -14, null, -14, null, -14, null],
+  },
+  spire: {
+    // Cold, regular, mechanical: the inside of OVERLORD's machine.
+    bpm: 104,
+    leadWave: 'square',
+    lead: [12, 19, 24, 19, 12, 19, 24, 19, 11, 18, 23, 18, 11, 18, 23, 18, 10, 17, 22, 17, 10, 17, 22, 17, 11, 18, 23, 18, 13, 20, 25, 20],
+    bass: [0, null, null, null, 0, null, null, null, -1, null, null, null, -1, null, null, null, -2, null, null, null, -2, null, null, null, -1, null, null, null, 1, null, null, null],
+  },
+  chamber: {
+    // After the fight: quiet, wide, almost hopeful.
+    bpm: 72,
+    leadWave: 'triangle',
+    lead: [19, null, 17, null, 15, null, 12, null, 14, null, null, null, 10, null, null, null, 15, null, 14, null, 12, null, 10, null, 12, null, null, null, null, null, null, null],
+    bass: [0, null, null, null, null, null, null, null, -4, null, null, null, null, null, null, null, -5, null, null, null, null, null, null, null, -7, null, null, null, null, null, null, null],
+  },
+  arbiter: {
+    bpm: 156,
+    leadWave: 'sawtooth',
+    drums: true,
+    lead: [12, 15, 19, 15, 12, 15, 20, 15, 11, 14, 19, 14, 11, 14, 18, 14, 12, 15, 19, 24, 22, 19, 15, 12, 13, null, 13, null, 11, null, 11, null],
+    bass: [0, 0, 12, 0, 0, 0, 12, 0, -1, -1, 11, -1, -1, -1, 11, -1, 0, 0, 12, 0, 0, 0, 12, 0, 1, 1, 13, 1, -1, -1, 11, -1],
+  },
+
   title: {
     bpm: 84,
     leadWave: 'triangle',

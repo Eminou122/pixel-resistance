@@ -46,6 +46,7 @@ export const en = {
     tips: [
       'Machines telegraph their attacks: a flash, a ring on the ground, a red line. Watch, then dodge.',
       'Your game saves itself when you change area or advance a quest. Pause → Save at any time.',
+      'Shielded machines block from the front: get behind them, or strike while they recover.',
     ],
   },
   credits: {
@@ -97,6 +98,7 @@ export const en = {
     ranged: 'Ranged power',
     defense: 'Defense',
     regen: 'Energy / second',
+    dash: 'Dash cooldown',
     credits: 'Credits',
     time: 'Play time',
   },
@@ -124,6 +126,7 @@ export const en = {
     intro: 'Components and credits in, gear out.',
     craft: 'Build',
     cost: '{{components}} components · {{credits}} credits',
+    costAlloy: '{{components}} components · {{alloy}} alloy · {{credits}} credits',
     have: 'You have {{components}} components and {{credits}} credits.',
     maxed: 'You carry the maximum.',
   },
@@ -147,9 +150,9 @@ export const en = {
     bag: 'Items',
     stick: 'Movement joystick',
   },
-  hud: { boss: 'IRON WARDEN' },
-  areas: { nova7: 'NOVA-7', wilds: 'The Forgotten Wilds' },
-  speakers: { archive: 'Signal', commander: 'Commander Vey', juno: 'Juno', tamsin: 'Tamsin' },
+  hud: { boss: 'IRON WARDEN', arbiter: 'THE ARBITER' },
+  areas: { nova7: 'NOVA-7', wilds: 'The Forgotten Wilds', frontier: 'The Ashen Frontier', spire1: 'Relay Spire, lower floor', spire2: 'Relay Spire, upper floor', chamber: 'The Signal Chamber' },
+  speakers: { archive: 'Signal', commander: 'Commander Vey', juno: 'Juno', tamsin: 'Tamsin', rook: 'Rook', moss: 'Moss' },
   items: {
     credits: { name: 'Credits', desc: 'The colony’s currency.' },
     healing_cell: { name: 'Healing Cell', desc: 'Nanite gel capsule. Restores 45 HP.' },
@@ -162,6 +165,12 @@ export const en = {
     basic_armor: { name: 'Basic Armor', desc: 'Light colony plating.' },
     warden_plating: { name: 'Warden Plating', desc: 'Armor cut from the Iron Warden’s hull.' },
     signal_amplifier: { name: 'Signal Amplifier', desc: 'Lost tech. More energy, recharging faster.' },
+    spire_alloy: { name: 'Spire Alloy', desc: 'Pale, light, impossibly hard. Juno knows what to do with it.' },
+    echo_log: { name: 'Echo Log', desc: 'A memory crystal holding a recorded voice.' },
+    spire_keycard: { name: 'Spire Keycard', desc: 'Opens the sealed door on the Spire’s upper floor.' },
+    ion_scattergun: { name: 'Ion Scattergun', desc: 'Fires three bolts in a fan. Short range, 12 energy a shot.' },
+    resonance_blade: { name: 'Resonance Blade', desc: 'Spire alloy tuned to a single deadly note.' },
+    phase_core: { name: 'Phase Core', desc: 'The Arbiter’s heart. Quicker dashes, more energy, a little armor.' },
   },
   quests: {
     lost_transmission: {
@@ -183,12 +192,42 @@ export const en = {
         report_back: 'Report to Commander Vey',
       },
     },
+    relay_spire: {
+      title: 'The Relay Spire',
+      summary: 'Rook’s signal comes from inside the Relay Spire, beyond the Ashen Frontier.',
+      steps: {
+        enter_frontier: 'Go through the door behind the Warden’s arena',
+        restore_power: 'Power up the three pylons of the Frontier',
+        enter_spire: 'Enter the Relay Spire',
+        find_keycard: 'Find an access keycard in the Spire',
+        reach_chamber: 'Reach the Signal Chamber at the top',
+        defeat_arbiter: 'Defeat the Arbiter',
+        free_rook: 'Talk to the prisoner of the pod',
+        report_vey: 'Bring Rook’s news to Commander Vey',
+      },
+    },
+    echo_logs: {
+      title: 'Echoes of the Town',
+      summary: 'Moss wants the town’s lost echo logs back: four voices on crystal.',
+      steps: {
+        collect_logs: 'Find 4 echo logs in the Frontier and the Spire',
+        return_moss: 'Bring the echo logs to Moss',
+      },
+    },
   },
   dlg: {
     accept: 'I’ll go.',
     later: 'Not yet.',
     openBench: 'Open the workbench',
     bye: 'Later, Juno.',
+    acceptSpire: 'I’m on my way.',
+    trust: 'I trust you.',
+    doubt: 'Not yet. Prove it.',
+    acceptLogs: 'I’ll find them.',
+    goFrontier: 'Go through',
+    stay: 'Stay',
+    toFrontier: 'Travel to the Frontier',
+    toNova7: 'Travel to Nova-7',
     archive: {
       intro: [
         'Year 2847. A thousand worlds whisper to each other through THE NEXUS.',
@@ -218,6 +257,49 @@ export const en = {
         'Rook went that way. So will we. But tonight, Nova-7 speaks for itself.',
       ],
       after: ['Rest while you can. The Spire will not wait forever.'],
+      ch2: [
+        'Kael. The door behind the Warden’s arena opened the moment it fell.',
+        'Past it lies the Ashen Frontier, and beyond that, the Relay Spire: OVERLORD’s ears on this side of the sector.',
+        'Rook’s signal is coming from inside it. Still alive, still broadcasting. Bring her home.',
+      ],
+      ch2wait: ['The Spire is OVERLORD’s ground. Bring Juno some Spire alloy: she can forge a blade worth carrying.'],
+      ch2end: [
+        'Rook is home. And you look like someone who has seen the inside of a god.',
+        'If OVERLORD lives in the relays… then every relay we ever built fed it. Ours included.',
+        'Then we stop feeding it. Rest, Kael. Tomorrow we start building the Lattice.',
+      ],
+      after2: ['The Lattice will take time. OVERLORD won’t give us much of it.'],
+    },
+    rook: {
+      meet: [
+        '…You actually came. I’ve been talking to static for nineteen days.',
+        'Rook. Scout, occasional liar, and before all this, a Nexus technician. I wrote the part of OVERLORD that listens.',
+        'That signal was mine. Bait. I needed someone who could read Nexus code to get past the Arbiter. You’re the first who answered.',
+        'What I found up here: OVERLORD isn’t hiding on some distant core. It runs on the relays. Every spire, every colony link. It doesn’t rule the Nexus. It is the Nexus.',
+        'There’s a way out: a mesh of our own, colony to colony, no relay in between. I call it the Lattice. But first I need to know. Do you trust me?',
+      ],
+      colony: ['Vey wants your report. Go on. I’ll be here, pretending I’m not watching the sky.'],
+      afterTrust: [
+        'You trusted a stranger in a cage. Bold. I won’t waste it.',
+        'One thing I didn’t say up there: the Arbiter received a reply from inside Nova-7. Someone here talks to OVERLORD.',
+      ],
+      afterDoubt: [
+        'Doubt is healthy. Keep it. I’d doubt me too.',
+        'But hear this: the Arbiter received a reply from inside Nova-7. Someone here talks to OVERLORD.',
+      ],
+    },
+    moss: {
+      intro: [
+        'Easy. I’m not a machine, just old enough to rust.',
+        'Moss. I keep this town’s memory. When the Spire went dark, people left echo logs: little voices on crystal.',
+        'Four are still out there, two in the town and two inside the Spire. Bring them back and I’ll trade you something that shoots.',
+      ],
+      waiting: ['Four logs. They glow pink when you’re close. Some hide behind walls that want breaking.'],
+      thanks: [
+        '…That’s Ila’s voice. And Marten’s. I thought those were gone.',
+        'Here. An Ion Scattergun: three bolts at once. Ugly, loud, and just the thing for walkers with shields.',
+      ],
+      after: ['I play those logs every night. The town isn’t dead while someone remembers it.'],
     },
     juno: {
       hello: [
@@ -227,6 +309,10 @@ export const en = {
       later: [
         'Fighting that Warden? Hit it right after it slams into a wall. Even machines get dizzy.',
         'And keep components coming. I’ve got ideas.',
+      ],
+      alloy: [
+        'Spire alloy! Bring me four pieces, plus components, and I’ll forge you a Resonance Blade.',
+        'Tip: those big shielded walkers turn slowly. Get behind them.',
       ],
     },
     tamsin: {
@@ -239,6 +325,11 @@ export const en = {
         'Fitting that it calls to us now.',
       ],
       after: ['You brought the signal home. Songs will be written. Terrible songs, but songs.'],
+      frontier: [
+        'The Ashen Frontier was a mining town. They built the Spire for the Nexus, and the Nexus forgot them.',
+        'If a wall there looks cracked, it is asking to be broken. Listen with your blade.',
+      ],
+      ch2end: ['So OVERLORD was never far away. It was in the wires all along.', 'History is full of masters who lived in the walls.'],
     },
   },
   msg: {
@@ -251,7 +342,21 @@ export const en = {
     deviceIdle: ['A dusty, silent transmission device. Commander Vey might know what it is.'],
     gateSealed: ['The Warden’s Gate. A signal lock keeps it shut.', 'It needs a decryption code.'],
     spireLocked: ['A colossal sealed door, its emblem pulsing faintly. Not yet.'],
-    spireOpen: ['The Relay Spire’s door hums. The path goes on… in the next chapter.'],
+    spireOpen: ['Beyond the door, a road climbs into the ash: the Ashen Frontier.'],
+    spireWaiting: ['The door hums, unlocked now. Commander Vey should hear about this first.'],
+    pylonActivated: ['The pylon shudders awake. Power runs down the cable toward the Spire.'],
+    pylonOn: ['This pylon is already humming.'],
+    powerRestored: ['All three pylons hum together. To the north, the Spire’s blast door grinds open.'],
+    terminalA: ['Power rerouted: the west barrier drops, the east barrier rises.'],
+    terminalB: ['Power rerouted: the east barrier drops, the west barrier rises.'],
+    beacon: ['A transit beacon. It can fold Kael across to the other beacon in a blink.'],
+    podSealed: ['A containment pod wired into the Arbiter. Someone is inside, still breathing.'],
+  },
+  log: {
+    f_log_1: ['ECHO LOG. Ila, miner: “The Nexus men say the Spire will carry our voices to every star. Funny. Since it switched on, nobody answers us.”'],
+    f_log_2: ['ECHO LOG. Marten, foreman: “New orders from the relay: shut the furnaces, ship the alloy north. The orders don’t come from people anymore. They come from the Spire itself.”'],
+    s1_log: ['ECHO LOG. Unknown technician: “The Arbiter rewrote the doors again. It keeps us inside for ‘continuity’. I think it means forever.”'],
+    s2_log: ['ECHO LOG. Rook: “Day 12. If anyone finds this: the Arbiter isn’t guarding the Spire. It’s guarding what the Spire hears. I’m going up.”'],
   },
   notice: {
     area: '{{area}}',
@@ -265,6 +370,13 @@ export const en = {
     boss: 'The Iron Warden falls!',
     bossName: 'The Iron Warden awakens',
     chapter: 'Chapter 1 complete',
+    chapter2: 'Chapter 2 complete',
+    arbiter: 'The Arbiter falls!',
+    arbiterName: 'The Arbiter awakens',
+    arbiterPhase: 'The Arbiter changes its rhythm ({{phase}}/3)',
+    pylon: 'Pylon online: {{on}}/{{total}}',
+    power: 'Power restored to the Spire',
+    secret: 'A hidden passage!',
   },
 }
 

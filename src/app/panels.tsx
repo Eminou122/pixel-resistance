@@ -14,6 +14,7 @@ const BONUS_LABEL: Record<keyof Bonus, string> = {
   maxHp: 'character.hp',
   maxEnergy: 'character.energy',
   regen: 'character.regen',
+  dash: 'character.dash',
 }
 
 export function Inventory({ onClose }: { onClose: () => void }) {
@@ -132,6 +133,7 @@ export function Character({ onClose }: { onClose: () => void }) {
     [t('character.ranged'), s.ranged],
     [t('character.defense'), s.defense],
     [t('character.regen'), s.regen],
+    ...(s.dash ? [[t('character.dash'), `-${s.dash} ms`] as [string, string]] : []),
     [t('character.credits'), save.player.credits],
     [t('character.time'), formatTime(live.playTime)],
   ]
@@ -194,7 +196,10 @@ export function Bench({ onClose }: { onClose: () => void }) {
   return (
     <Panel title={t('bench.title')} onClose={onClose}>
       <p>{t('bench.intro')}</p>
-      <p className="er-muted">{t('bench.have', { components: count(save.inventory, 'components'), credits: save.player.credits })}</p>
+      <p className="er-muted">
+        {t('bench.have', { components: count(save.inventory, 'components'), credits: save.player.credits })}
+        {count(save.inventory, 'spire_alloy') > 0 && ` · ${count(save.inventory, 'spire_alloy')} ${t('items.spire_alloy.name')}`}
+      </p>
       <ul className="er-recipes">
         {RECIPES.map((r) => {
           const maxed = count(save.inventory, r.gives) >= ITEMS[r.gives].max
@@ -203,7 +208,7 @@ export function Bench({ onClose }: { onClose: () => void }) {
               <Icon id={r.gives} />
               <div>
                 <b>{t(`items.${r.gives}.name`)}</b>
-                <span className="er-muted">{maxed ? t('bench.maxed') : t('bench.cost', { components: r.components, credits: r.credits })}</span>
+                <span className="er-muted">{maxed ? t('bench.maxed') : r.alloy ? t('bench.costAlloy', { components: r.components, alloy: r.alloy, credits: r.credits }) : t('bench.cost', { components: r.components, credits: r.credits })}</span>
               </div>
               <Button disabled={!canCraft(save, r)} onClick={() => useGame.getState().craft(r.id) && sfx('confirm')}>
                 {t('bench.craft')}

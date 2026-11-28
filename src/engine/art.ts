@@ -1,52 +1,10 @@
 // Original pixel art, drawn in code on canvases (no image files). Used by Phaser for textures and by React for icons.
 import type { ItemId, NpcId } from '../game/data.ts'
 import type { TileKind } from '../game/maps.ts'
+import { C, ellipse, hash, makeCanvas, p, r, sheet, speckle, type Ctx, type Sheet } from './pixels.ts'
+import { CH2_ICONS, CH2_TILES } from './art2.ts'
 
-type Ctx = CanvasRenderingContext2D
-
-export const C = {
-  void: '#070a16', night: '#0d1226', s1: '#1b2238', s2: '#262f4a', s3: '#36415f', s4: '#4c5a7e', s5: '#6b7aa1', s6: '#a9b8d8',
-  cyan: '#3ef0ff', cyanD: '#1aa6c4', cyanDD: '#0f5f7a', magenta: '#ff3ea5', magentaD: '#a21a6b', amber: '#ffb347', amberD: '#c26a12',
-  red: '#ff4d5e', redD: '#a3182b', green: '#59f39a', greenD: '#1f9e5c', white: '#f4f8ff',
-  g1: '#0f2c25', g2: '#163f33', g3: '#215a46', g4: '#33805f', l1: '#0b2224', l2: '#123a38', l3: '#1d5a52', l4: '#2f8a74',
-  d1: '#33241d', d2: '#4d3929', d3: '#6c5139', w1: '#0b1f48', w2: '#143670', w3: '#2456a8', foam: '#7fd4ff',
-  r1: '#25283a', r2: '#3f455c', r3: '#666d88', u1: '#25232c', u2: '#38364a', u3: '#544f65', rust: '#86472a', moss: '#2b6a45',
-  p1: '#25163d', p2: '#46296a', p3: '#7a4ab0', p4: '#b07ae0',
-} as const
-
-export function makeCanvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
-  const cv = document.createElement('canvas')
-  cv.width = w
-  cv.height = h
-  const ctx = cv.getContext('2d')!
-  ctx.imageSmoothingEnabled = false
-  return [cv, ctx]
-}
-
-const r = (c: Ctx, x: number, y: number, w: number, h: number, col: string) => {
-  c.fillStyle = col
-  c.fillRect(x, y, w, h)
-}
-const p = (c: Ctx, x: number, y: number, col: string) => r(c, x, y, 1, 1, col)
-/** Deterministic noise in [0, 1). */
-const hash = (x: number, y: number, s = 0) => {
-  let h = (x * 374761393 + y * 668265263 + s * 2147483647) | 0
-  h = Math.imul(h ^ (h >>> 13), 1274126177)
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
-}
-/** Filled ellipse, pixel by pixel. */
-const ellipse = (c: Ctx, cx: number, cy: number, rx: number, ry: number, col: string) => {
-  for (let y = Math.floor(cy - ry); y <= cy + ry; y++)
-    for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
-      const dx = (x + 0.5 - cx) / rx
-      const dy = (y + 0.5 - cy) / ry
-      if (dx * dx + dy * dy <= 1) p(c, x, y, col)
-    }
-}
-const speckle = (c: Ctx, seed: number, cols: string[], density: number, x0 = 0, y0 = 0, w = 16, h = 16) => {
-  for (let y = y0; y < y0 + h; y++)
-    for (let x = x0; x < x0 + w; x++) if (hash(x, y, seed) < density) p(c, x, y, cols[Math.floor(hash(y, x, seed + 1) * cols.length)]!)
-}
+export { C, makeCanvas, type Sheet } from './pixels.ts'
 
 // ---------- Tiles ----------
 
@@ -391,6 +349,8 @@ const TILE_DRAW: Record<string, { n: number; draw: TileDraw; transparent?: boole
   },
 }
 
+Object.assign(TILE_DRAW, CH2_TILES)
+
 export interface Tileset {
   canvas: HTMLCanvasElement
   /** First tile index for each kind; the next `count` indices are its variants. */
@@ -447,6 +407,10 @@ export const LOOKS: Record<'kael' | NpcId, Look> = {
   commander: { skin: '#c98d66', hair: '#d9dde8', suit: '#7a2333', suitD: '#4a1420', accent: C.amber, boots: C.void, style: 'long', coat: true },
   juno: { skin: '#f0c49a', hair: '#e0662c', suit: '#5a6b2e', suitD: '#39461b', accent: C.amber, boots: C.d1, style: 'goggles' },
   tamsin: { skin: '#b9825e', hair: C.p2, suit: C.p2, suitD: C.p1, accent: C.magenta, boots: C.p1, style: 'hood' },
+  // Rook: silver crop, long charcoal coat, one magenta lens. Ex-Nexus, and it shows.
+  rook: { skin: '#d9a27a', hair: '#cfd6e6', suit: '#2a2d3a', suitD: '#181a24', accent: C.magenta, boots: C.void, visor: C.magenta, style: 'short', coat: true },
+  // Moss: an old scavenger in patched brown, goggles pushed up.
+  moss: { skin: '#a8714f', hair: '#8a8f7a', suit: '#5a4630', suitD: '#3a2c1e', accent: C.green, boots: C.d1, style: 'goggles' },
 }
 
 interface Pose {
@@ -555,23 +519,6 @@ function drawFallen(c: Ctx, look: Look, stage: number) {
   r(c, 11, 11, 4, 2, look.suitD)
   r(c, 14, 11, 1, 2, look.boots)
   if (look.visor) r(c, 2, 11, 1, 2, stage === 3 ? C.cyanDD : look.visor)
-}
-
-export interface Sheet {
-  canvas: HTMLCanvasElement
-  frames: { name: string; x: number; y: number; w: number; h: number }[]
-}
-
-function sheet(size: number, draws: [string, (c: Ctx) => void][], height = size): Sheet {
-  const [cv, ctx] = makeCanvas(size * draws.length, height)
-  const frames = draws.map(([name, draw], i) => {
-    ctx.save()
-    ctx.translate(i * size, 0)
-    draw(ctx)
-    ctx.restore()
-    return { name, x: i * size, y: 0, w: size, h: height }
-  })
-  return { canvas: cv, frames }
 }
 
 /** Frames: `<dir>-idle-0..1`, `<dir>-walk-0..3`, `<dir>-attack-0..1`, `<dir>-hurt`, `death-0..3`. */
@@ -828,6 +775,7 @@ export function fxSheet(): Sheet {
 // ---------- Item icons (16 x 16) ----------
 
 const ICONS: Record<ItemId | 'credits', (c: Ctx) => void> = {
+  ...CH2_ICONS,
   credits: (c) => {
     ellipse(c, 8, 8, 6, 6, C.amberD)
     ellipse(c, 8, 7.5, 5, 5, C.amber)
